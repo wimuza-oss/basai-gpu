@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-12 — STT production cutover and CUDA inference validated (operator-provided)
+- Prepared `/opt/basai-stt` with the reviewed GitHub Compose and protected local `.env`; host-side `docker compose config --quiet` passed.
+- Activated container `basai-stt` from existing image `sha256:bb4317edd325b0366384660f37a3f182a19a5a12757c2bb8031b3c8adec78c25`, without rebuilding.
+- Observed `Status=running`, `Health=healthy`, `Restart=unless-stopped`, and `GET /health/live` returned `{"status":"alive"}`.
+- Preserved original STT container `basai-stt-stage66-basai-stt-1` stopped and Ollama `bas-ollama` running.
+- Authorized `GET /health/ready` returned `{"status":"cuda_available","model_loaded":"false"}` prior to the first inference (model is loaded lazily).
+- Authorized `POST /v1/stt/transcribe` returned `status=NEEDS_REVIEW`, `model=turbo`, `device=cuda`, **8 segments**, `processing_seconds=7.263`, and the test script reported `STT INFERENCE: PASS`.
+- **Acceptance scope:** confirmed liveness, CUDA readiness and one real inference. Not yet verified: automatic recovery after Docker/host restart, long-running stability, sustained concurrent traffic, Laravel connectivity, or accuracy of courtroom transcription.
+
 ## 2026-11-12 — GPU host preflight rechecked (operator-provided)
 - Confirmed existing local image `basai-stt:6.6.0`: `sha256:bb4317edd325b0366384660f37a3f182a19a5a12757c2bb8031b3c8adec78c25`.
 - Confirmed existing model volume: `basai-stt-stage66_basai_models`, mountpoint `/data/docker/volumes/basai-stt-stage66_basai_models/_data`.
@@ -24,8 +33,9 @@
 - Established data and secret exclusions.
 
 ## Pending
-- Validate Compose against the actual GPU-host Docker Compose installation, image and volume.
-- Apply approved STT cutover and verify CUDA inference and restart behavior.
-- Create a separately tagged and tested application image for Python source changes.
-- Finalize private authenticated Laravel-to-GPU transport.
-- Standardize Ollama only after STT acceptance.
+- Verify automatic recovery after a controlled Docker/host restart **only in an approved maintenance window**.
+- Complete secure Laravel 13-to-GPU network transport; current GPU STT binding is `127.0.0.1:18066`.
+- Implement reliable Laravel queueing, timeouts and failure handling for one-GPU-at-a-time inference.
+- Define safe handling for recordings longer than 600 seconds and judge-reviewed transcripts.
+- Create a separately tagged and tested application image for any Python source changes.
+- Standardize Ollama only after the STT integration is accepted.
