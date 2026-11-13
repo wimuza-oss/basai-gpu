@@ -69,3 +69,15 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Host Laravel `192.168.16.95` memiliki `/usr/bin/ffmpeg` dan `/usr/bin/ffprobe`.
 - Versi terverifikasi: `4.4.2-0ubuntu0.22.04.1`.
 - Gerbang verifikasi FFmpeg dinyatakan selesai; tidak perlu diuji ulang tanpa perubahan dependency.
+
+
+### FFmpeg normalizer implemented
+- `FfmpegAudioNormalizer` telah ditambahkan pada Laravel `basai_tes`.
+- Syntax PHP lulus.
+- Konfigurasi runtime terverifikasi:
+  - ffmpeg: `/usr/bin/ffmpeg`
+  - ffprobe: `/usr/bin/ffprobe`
+  - timeout: `180`
+- Normalizer menggunakan Symfony Process dengan argument array, bukan shell command concatenation.
+- Output contract: WAV / pcm_s16le / 16 kHz / mono, diverifikasi kembali melalui FFprobe.
+- Temporary output dibersihkan melalui `finally`.
