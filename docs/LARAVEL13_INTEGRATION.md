@@ -298,3 +298,24 @@ Kebijakan:
 - output normalisasi: WAV, PCM signed 16-bit little-endian, 16 kHz, mono;
 - source original tidak boleh ditimpa;
 - temporary output wajib dibersihkan setelah proses.
+
+
+## Recording configuration alignment
+
+`RecordingStorageService` menggunakan:
+
+```php
+config('basai.recordings.originals_root')
+```
+
+Karena itu `recordings` wajib menjadi top-level key pada `config/basai.php`, bukan child dari `gpu`.
+
+Target:
+
+```text
+basai.gpu.*
+basai.recordings.*
+basai.pipeline.*
+```
+
+Disk `basai_originals` pada `config/filesystems.php` dan `basai.recordings.originals_root` harus menunjuk storage root yang sama pada deployment sementara.
