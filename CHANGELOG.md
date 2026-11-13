@@ -94,3 +94,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Laravel 13.42.0 pada host sementara tidak mendukung opsi `php artisan route:list --columns=...`.
 - Gunakan `php artisan route:list --path=basai/test` tanpa `--columns`.
 - Syntax modul test dan konfigurasi `basai.recordings` / `basai.pipeline` sudah lulus; kegagalan opsi CLI ini bukan kegagalan aplikasi.
+
+
+### First E2E upload test
+- Upload WAV melalui halaman `/basai/test` berhasil mencapai controller, tetapi pipeline mengembalikan pesan generik `Transkripsi gagal. Periksa log BAS-AI.`.
+- Root cause belum ditetapkan; next action adalah membaca exception terbaru pada `storage/logs/laravel.log` tanpa mengulang test.
+- Jangan mengulang GPU readiness, tunnel, FFmpeg install, atau konfigurasi pipeline yang sudah lulus.
