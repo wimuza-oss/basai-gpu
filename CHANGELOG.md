@@ -38,3 +38,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - PHP 8.3.36.
 - GPU host `192.168.16.81`.
 - `basai:gpu-status` sebelumnya telah lulus: CONNECTED, CUDA available, model loaded.
+
+
+### Pipeline architecture audit
+- `LaravelDiskAudioSource` memvalidasi disk melalui allowlist `basai.pipeline.source_disks` dan menolak absolute path, backslash, NUL, serta traversal `.` / `..`.
+- `AudioStager` membuat temporary local copy pada work directory, membatasi ukuran sumber, menghitung SHA-256, memverifikasi optional expected checksum, dan selalu cleanup melalui `finally`.
+- Laravel Process facade dan Symfony Process tersedia; implementasi FFmpeg dapat memakai process API tanpa shell concatenation.
+- Belum ditemukan route/controller BAS-AI pada audit terakhir.
+- Belum ditemukan class normalizer FFmpeg pada audit terakhir.
+- Kontrak metode transkripsi pada `GpuSttClient` masih perlu dibaca sebelum membuat test UI agar tidak membuat jalur integrasi paralel.
