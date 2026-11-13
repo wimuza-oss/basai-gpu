@@ -228,3 +228,20 @@ additional VRAM: ~212 MiB
 Stable STT remained online and unchanged.
 
 Next checkpoint: **D3 single shared-channel diarization test using a real two-speaker WAV**.
+
+
+## D3 result
+
+Status: **PASS**
+
+```text
+speaker_count: 2
+processing_seconds: 0.594
+
+SPEAKER_00  31ms   -> 3440ms
+SPEAKER_01  3710ms -> 6680ms
+```
+
+For this sample, exclusive diarization and regular speaker activity produced the same two turns.
+
+Next checkpoint: **D4 Whisper + diarization timestamp alignment** to produce canonical speaker-labeled transcript segments.
