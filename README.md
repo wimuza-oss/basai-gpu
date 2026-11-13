@@ -4,28 +4,37 @@ BAS-AI GPU inference services dan kontrak integrasi Laravel 13.
 
 ## Status
 
-Integrasi sementara sedang diaudit pada aplikasi Laravel 13:
+Integrasi sementara sedang diuji pada aplikasi Laravel 13:
 
 ```text
 /var/www/html/basai_tes
 ```
 
-Baseline GPU yang telah lulus tidak perlu diuji ulang tanpa alasan teknis:
+### Terverifikasi 2026-11-13
 
-- GPU inference: `192.168.16.81`
-- local tunnel endpoint: `127.0.0.1:18167`
-- Laravel command `basai:gpu-status`: CONNECTED
-- CUDA: available
-- model: loaded
-
-Isu aktif: `config("basai.pipeline") === null`, sehingga allowlist `LaravelDiskAudioSource` tidak memuat `basai_originals`.
+- Laravel 13.42.0 / PHP 8.3.36.
+- HTTP `/basai_tes` kembali **200**.
+- `.env` tersedia dan `APP_KEY` terbaca oleh bootstrap Laravel.
+- `APP_KEY` lama dipertahankan; jangan regenerasi pada restart.
+- Disk `basai_originals` terdefinisi dan root menunjuk ke `/var/lib/basai-tes/originals`.
+- GPU inference: `192.168.16.81`.
+- Laravel command `basai:gpu-status` sebelumnya telah lulus: CONNECTED, CUDA available, model loaded.
+- Unit `basai-gpu-tunnel.service` sudah `enabled` dan `active`, `Restart=always`, `RestartSec=10s`.
+- **Belum terverifikasi:** listener lokal `127.0.0.1:18167` setelah perubahan unit; output pemeriksaan port terakhir kosong.
+- **Isu aplikasi aktif:** `config("basai.pipeline") === null`; nesting `config/basai.php` harus diperbaiki sebelum pipeline audio digunakan.
+- **FFmpeg belum ditemukan di PATH** pada audit terakhir.
 
 ## Dokumen
 
 - `docs/LARAVEL13_INTEGRATION.md` — kontrak portabel dan persyaratan WAJIB.
+- `docs/LARAVEL13_OPERATIONS.md` — runbook restart/reconnect dan status operasional.
 - `scripts/laravel13/read_only_audit.sh` — audit runtime tanpa mengubah aplikasi.
 - `CHANGELOG.md` — riwayat perubahan.
 
+## Halaman uji
+
+Untuk mempercepat integrasi, halaman **upload audio / recording browser** boleh ditambahkan hanya pada `basai_tes`. Halaman ini harus menggunakan service pipeline yang sama dengan integrasi akhir; tidak boleh membuat jalur transkripsi alternatif yang bypass validasi.
+
 ## Security
 
-Jangan commit `.env`, password, token, model AI, rekaman persidangan, dokumen identitas, data perkara, atau hasil transkripsi yang mengandung data perkara.
+Jangan commit `.env`, password, token, private key SSH, model AI, rekaman persidangan, dokumen identitas, data perkara, atau hasil transkripsi yang mengandung data perkara.
