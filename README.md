@@ -33,6 +33,7 @@ Integrasi sementara sedang diuji pada aplikasi Laravel 13:
 
 - `docs/LARAVEL13_INTEGRATION.md` — kontrak portabel dan persyaratan WAJIB.
 - `docs/LARAVEL13_OPERATIONS.md` — runbook restart/reconnect dan status operasional.
+- `docs/PRESENTATION_ARCHITECTURE_NOTES.md` — ringkasan arsitektur 4/8 channel, diarization, dan role mapping untuk bahan presentasi.
 - `scripts/laravel13/read_only_audit.sh` — audit runtime tanpa mengubah aplikasi.
 - `CHANGELOG.md` — riwayat perubahan.
 
