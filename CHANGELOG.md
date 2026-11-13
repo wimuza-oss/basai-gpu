@@ -188,3 +188,13 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Branch: `main`.
 - Working tree: clean.
 - Deployment source `services/diarization` is present and ready for build.
+
+
+### D2B isolated diarization service: PASS
+- Image `basai-diarization:1.0.0` built successfully.
+- Container `basai-diarization` started on `127.0.0.1:18067->8000/tcp`.
+- `GET /health/ready` returned CUDA-ready with model `community-1`.
+- GPU device: NVIDIA GeForce RTX 5060 Ti.
+- Additional diarization GPU memory observed: ~212 MiB.
+- Existing `basai-stt` remained running at ~1196 MiB VRAM.
+- No change made to the stable STT container.
