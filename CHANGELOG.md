@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-13 — Laravel BASAI_TES to GPU authenticated readiness (operator-provided)
+- Temporary Laravel 13 `basai_tes` installed on `192.168.16.95` at `/var/www/html/basai_tes`, with Apache Alias pointing to the application's `public` directory. Existing Laravel sites were kept separate.
+- Verified HTTP `/basai_tes/` returns 200, while `.env`, `composer.json`, and controller source test URLs return 404 after adding `RewriteBase /basai_tes/` in that app's `.htaccess`.
+- Validated PHP syntax for `config/basai.php`, `GpuIntegrationException`, `GpuSttClient` and `BasaiGpuStatus`.
+- Verified a temporary SSH local forward `192.168.16.95:127.0.0.1:18166` to `192.168.16.81:127.0.0.1:18066` returns `{"status":"alive"}`.
+- `php artisan basai:gpu-status` returned `BAS-AI GPU: CONNECTED`, `CUDA: cuda_available`, `Model loaded: YES`.
+- Observed that the temporary tunnel can disappear when the SSH session ends. **Persistent systemd tunnel has not yet been deployed.**
+- This is a development integration only; no Laravel-to-GPU upload job, durable queue, or end-to-end case transcription through Laravel has been accepted.
+
 ## 2026-11-12 — STT production cutover and CUDA inference validated (operator-provided)
 - Prepared `/opt/basai-stt` with the reviewed GitHub Compose and protected local `.env`; host-side `docker compose config --quiet` passed.
 - Activated container `basai-stt` from existing image `sha256:bb4317edd325b0366384660f37a3f182a19a5a12757c2bb8031b3c8adec78c25`, without rebuilding.
