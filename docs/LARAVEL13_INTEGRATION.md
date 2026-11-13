@@ -156,8 +156,8 @@ Client GPU harus memakai endpoint dari konfigurasi, timeout eksplisit, error map
 4. Verifikasi `basai.pipeline` dan `basai_originals`. **SELESAI**
 5. Verifikasi FFmpeg tersedia. **SELESAI — ffmpeg/ffprobe 4.4.2**
 6. Implementasi normalizer FFmpeg. **SELESAI — syntax/config verified; runtime conversion digabung ke E2E**
-7. Uji transkripsi WAV melalui client GPU yang sudah terbukti terkoneksi. **PENDING**
-8. Dokumentasikan hasil, rollback, dan file yang berubah. **BERJALAN**
+7. Uji transkripsi WAV melalui client GPU. **SELESAI — E2E verified**
+8. Dokumentasikan hasil, rollback, dan file yang berubah. **SELESAI untuk tahap E2E awal**
 
 ## Batas perubahan
 
@@ -360,3 +360,27 @@ Confirmed successful GPU response uses segment objects containing:
 Laravel must read `raw_text` as the primary transcript field. For portability across GPU service versions, `text` may be accepted as a fallback.
 
 Do not reject a valid segment merely because `text` is absent when `raw_text` is present.
+
+
+## E2E verification result
+
+Status: **BERHASIL**
+
+Pada 2026-11-13, satu upload WAV non-dummy berhasil diproses end-to-end melalui Laravel dan GPU Whisper.
+
+Hasil terverifikasi:
+
+- storage original berhasil;
+- source allowlist berhasil;
+- staging + SHA-256 berhasil;
+- FFmpeg normalization berhasil;
+- FFprobe contract validation berhasil;
+- output WAV: pcm_s16le / 16000 Hz / mono;
+- GPU request berhasil melalui tunnel lokal;
+- Whisper menggunakan model `turbo` pada `cuda`;
+- language `id`;
+- processing time 0.266 s;
+- 2 segments;
+- transcript berhasil ditampilkan pada halaman Laravel.
+
+GPU mengembalikan status `NEEDS_REVIEW`. Status ini adalah metadata hasil transkripsi dan bukan kegagalan pipeline.
