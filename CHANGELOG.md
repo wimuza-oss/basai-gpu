@@ -114,3 +114,21 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Root cause E2E failure: Laravel `GpuSttClient` expected `segments[].text`, while the GPU transcription service returns segment text in `segments[].raw_text`.
 - Parser must accept `raw_text` as the primary field and `text` as a compatibility fallback.
 - No changes required to tunnel, FFmpeg, Apache, or GPU Docker.
+
+
+### End-to-end transcription verified
+- 2026-11-13: uji upload WAV melalui `/basai/test` berhasil penuh.
+- Pipeline yang terbukti bekerja:
+  `RecordingStorageService -> LaravelDiskAudioSource -> AudioStager -> FfmpegAudioNormalizer -> GpuSttClient -> Whisper GPU -> Laravel UI`.
+- Input test: WAV.
+- Original bytes: 324942.
+- Normalized bytes: 216654.
+- Normalized format: `pcm_s16le`, 16000 Hz, mono.
+- GPU model: `turbo`.
+- GPU device: `cuda`.
+- Language: `id`.
+- Processing time: 0.266 seconds.
+- Segments: 2.
+- GPU status: `NEEDS_REVIEW`.
+- Transcript returned successfully to the Laravel page.
+- `NEEDS_REVIEW` is treated as a model/result review state, not a transport or pipeline failure.
