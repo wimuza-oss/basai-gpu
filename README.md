@@ -19,8 +19,9 @@ Integrasi sementara sedang diuji pada aplikasi Laravel 13:
 - Disk `basai_originals` terdefinisi dan root menunjuk ke `/var/lib/basai-tes/originals`.
 - GPU inference: `192.168.16.81`.
 - Laravel command `basai:gpu-status` sebelumnya telah lulus: CONNECTED, CUDA available, model loaded.
-- Unit `basai-gpu-tunnel.service` sudah `enabled` dan `active`, `Restart=always`, `RestartSec=10s`.
-- **Belum terverifikasi:** listener lokal `127.0.0.1:18167` setelah perubahan unit; output pemeriksaan port terakhir kosong.
+- Unit `basai-gpu-tunnel.service` terverifikasi `enabled` dan `active`, `Restart=always`, `RestartSec=10s`.
+- Listener lokal `127.0.0.1:18167` terverifikasi LISTEN oleh proses SSH.
+- Journal tidak menunjukkan reconnect loop; `Result=success`, `SubState=running`.
 - **Isu aplikasi aktif:** `config("basai.pipeline") === null`; nesting `config/basai.php` harus diperbaiki sebelum pipeline audio digunakan.
 - **FFmpeg belum ditemukan di PATH** pada audit terakhir.
 
