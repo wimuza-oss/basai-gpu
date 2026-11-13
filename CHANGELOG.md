@@ -175,3 +175,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Offline model size: ~33 MiB.
 - Runtime diarization tidak memerlukan Hugging Face token.
 - Token tidak disimpan ke GitHub/image/runtime config.
+
+
+### D2B deploy-key authentication: PASS
+- GPU host authenticated successfully to private repository `wimuza-oss/basai-gpu` using a dedicated SSH deploy key.
+- Deploy key is read-only; GitHub shell access is intentionally unavailable.
+- GPU host is ready to clone the repository as the deployment source of truth.
