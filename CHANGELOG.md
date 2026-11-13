@@ -63,3 +63,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - 2026-11-13: pemasangan paket OS `ffmpeg` pada host Laravel `192.168.16.95` disetujui karena merupakan dependency wajib untuk normalisasi audio sebelum transkripsi GPU.
 - Paket target dari Ubuntu 22.04 repositories: `7:4.4.2-0ubuntu0.22.04.1`.
 - Setelah instalasi, verifikasi dibatasi pada satu pengecekan executable/version lalu implementasi `FfmpegAudioNormalizer`.
+
+
+### FFmpeg verified
+- Host Laravel `192.168.16.95` memiliki `/usr/bin/ffmpeg` dan `/usr/bin/ffprobe`.
+- Versi terverifikasi: `4.4.2-0ubuntu0.22.04.1`.
+- Gerbang verifikasi FFmpeg dinyatakan selesai; tidak perlu diuji ulang tanpa perubahan dependency.
