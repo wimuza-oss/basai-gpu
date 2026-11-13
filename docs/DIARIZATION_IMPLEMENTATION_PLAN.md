@@ -191,3 +191,22 @@ Privacy:
 - HF_HUB_DISABLE_TELEMETRY=1
 - Hugging Face token is download-only and must never be committed or baked into the image.
 - Runtime model is loaded from a local read-only mount.
+
+
+## D2A result
+
+Status: **PASS**
+
+```text
+MODEL_DOWNLOAD_OK
+/data/stt/diarization-models/community-1
+size ~33 MiB
+```
+
+Model tree includes:
+
+- embedding
+- plda
+- segmentation
+
+D2B may now build the isolated diarization container using a read-only local model mount. No Hugging Face token is required at runtime.
