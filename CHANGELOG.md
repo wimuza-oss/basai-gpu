@@ -19,9 +19,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Listener `127.0.0.1:18167` terverifikasi LISTEN oleh proses SSH.
 - Tunnel berjalan stabil dengan `Result=success`, `SubState=running`, dan tanpa reconnect loop pada journal saat pemeriksaan.
 
+### Root cause identified
+- `config/basai.php` menempatkan `pipeline` di bawah `gpu`, sehingga Laravel membentuk `basai.gpu.pipeline` sementara service membaca `basai.pipeline.*`.
+- Perbaikan yang disetujui: pindahkan hanya blok `pipeline` ke level top-level `basai`; jangan mengubah konfigurasi GPU yang telah lulus.
+
 ### Current known issues
-- `config("basai.pipeline")` masih `null`.
-- `LaravelDiskAudioSource` menolak `basai_originals` karena allowlist pipeline tidak termuat.
+- Patch nesting `config/basai.php` belum dicatat sebagai terverifikasi sampai validasi runtime selesai.
 - FFmpeg belum ditemukan di PATH pada audit terakhir.
 
 ### Verified baseline
