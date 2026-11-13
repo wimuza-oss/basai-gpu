@@ -286,3 +286,37 @@ Saksi 1:
 ```
 
 D4 PASS hanya jika satu upload dari browser menghasilkan transcript berlabel speaker pada UI Laravel.
+
+
+## D4 result
+
+Status: **PASS**
+
+One browser upload through Laravel produced:
+
+```text
+SPEAKER_00
+Saudara saksi, apakah saudara kenal dengan penggugat?
+0.00s - 3.38s
+confidence: 0.991
+
+SPEAKER_01
+Kenal yang mulia, saya kakak kandungnya.
+3.74s - 6.56s
+confidence: 1.000
+```
+
+This verifies the application-level path:
+
+```text
+Browser upload
+ -> Laravel private storage
+ -> normalization
+ -> Whisper STT
+ -> speaker diarization
+ -> timestamp alignment
+ -> speaker-labeled transcript
+ -> Laravel UI
+```
+
+Next checkpoint: role mapping per hearing/session.
