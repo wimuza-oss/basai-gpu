@@ -100,3 +100,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Upload WAV melalui halaman `/basai/test` berhasil mencapai controller, tetapi pipeline mengembalikan pesan generik `Transkripsi gagal. Periksa log BAS-AI.`.
 - Root cause belum ditetapkan; next action adalah membaca exception terbaru pada `storage/logs/laravel.log` tanpa mengulang test.
 - Jangan mengulang GPU readiness, tunnel, FFmpeg install, atau konfigurasi pipeline yang sudah lulus.
+
+
+### Audio input format policy
+- Input pengguna tidak harus WAV.
+- Format input target: WAV, MP3, dan WebM.
+- Semua input dinormalisasi secara internal oleh FFmpeg menjadi WAV / PCM signed 16-bit little-endian / 16 kHz / mono sebelum dikirim ke Whisper.
+- Konversi MP3 ke WAV tidak meningkatkan kualitas sumber yang sudah lossy; WAV hanya menjadi format internal standar untuk inference.
+- Kegagalan E2E pertama bukan disebabkan format WAV. Request telah melewati storage, staging, FFmpeg, dan mencapai GPU; parser Laravel menolak struktur salah satu item `segments` dari respons GPU.
