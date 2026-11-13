@@ -108,3 +108,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Semua input dinormalisasi secara internal oleh FFmpeg menjadi WAV / PCM signed 16-bit little-endian / 16 kHz / mono sebelum dikirim ke Whisper.
 - Konversi MP3 ke WAV tidak meningkatkan kualitas sumber yang sudah lossy; WAV hanya menjadi format internal standar untuk inference.
 - Kegagalan E2E pertama bukan disebabkan format WAV. Request telah melewati storage, staging, FFmpeg, dan mencapai GPU; parser Laravel menolak struktur salah satu item `segments` dari respons GPU.
+
+
+### Fixed GPU segment contract
+- Root cause E2E failure: Laravel `GpuSttClient` expected `segments[].text`, while the GPU transcription service returns segment text in `segments[].raw_text`.
+- Parser must accept `raw_text` as the primary field and `text` as a compatibility fallback.
+- No changes required to tunnel, FFmpeg, Apache, or GPU Docker.
