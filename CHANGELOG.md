@@ -181,3 +181,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - GPU host authenticated successfully to private repository `wimuza-oss/basai-gpu` using a dedicated SSH deploy key.
 - Deploy key is read-only; GitHub shell access is intentionally unavailable.
 - GPU host is ready to clone the repository as the deployment source of truth.
+
+
+### D2B repository clone: PASS
+- GPU host successfully cloned private repository `wimuza-oss/basai-gpu` to `/opt/bas-ai/basai-gpu`.
+- Branch: `main`.
+- Working tree: clean.
+- Deployment source `services/diarization` is present and ready for build.
