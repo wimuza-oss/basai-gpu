@@ -57,3 +57,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Respons sukses memuat metadata status/language/model/device/processing_seconds dan `segments[]`.
 - Dengan kontrak ini, tidak diperlukan audit tambahan untuk mencari endpoint GPU.
 - Sisa verifikasi dibatasi menjadi tiga gerbang: FFmpeg, satu E2E WAV->GPU, satu UI upload/recording.
+
+
+### Approved host dependency
+- 2026-11-13: pemasangan paket OS `ffmpeg` pada host Laravel `192.168.16.95` disetujui karena merupakan dependency wajib untuk normalisasi audio sebelum transkripsi GPU.
+- Paket target dari Ubuntu 22.04 repositories: `7:4.4.2-0ubuntu0.22.04.1`.
+- Setelah instalasi, verifikasi dibatasi pada satu pengecekan executable/version lalu implementasi `FfmpegAudioNormalizer`.
