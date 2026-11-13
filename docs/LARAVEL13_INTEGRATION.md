@@ -173,3 +173,61 @@ Tanpa persetujuan eksplisit, integrasi ini tidak boleh:
 ## Rollback
 
 Setiap patch server harus memiliki backup timestamped sebelum edit. Rollback adalah restore file backup lalu membersihkan cache konfigurasi **hanya aplikasi basai_tes** bila konfigurasi pernah dicache ulang.
+
+
+## Existing pipeline components
+
+Audit 2026-11-13 menemukan komponen berikut pada Laravel 13 sementara:
+
+```text
+app/Services/Basai/
+├── GpuSttClient.php
+├── RecordingStorageService.php
+└── Pipeline/
+    ├── AudioSource.php
+    ├── AudioStager.php
+    └── LaravelDiskAudioSource.php
+```
+
+### LaravelDiskAudioSource
+
+Komponen ini menjadi boundary sumber audio. WAJIB dipertahankan:
+
+- disk harus berada pada allowlist `basai.pipeline.source_disks`;
+- absolute path ditolak;
+- backslash dan NUL ditolak;
+- traversal `.` / `..` ditolak;
+- stream dibaca melalui Laravel Storage.
+
+### AudioStager
+
+Komponen ini menjadi staging boundary sebelum proses native/remote:
+
+- membuat local temporary copy pada `basai.pipeline.work_directory`;
+- membatasi source bytes;
+- menghitung SHA-256 selama streaming;
+- mendukung expected checksum;
+- cleanup stream dan temporary file melalui `finally`.
+
+Jangan mengganti kedua komponen tersebut dengan upload langsung ke GPU.
+
+### Process execution
+
+PHP `proc_open`, Laravel Process facade, dan Symfony Process tersedia. FFmpeg normalizer harus menggunakan process API dengan argument array dan timeout; jangan menggunakan shell command concatenation dari input pengguna.
+
+### Test page integration
+
+Halaman test yang akan dibuat harus mengikuti:
+
+```text
+HTTP upload / MediaRecorder
+ -> RecordingStorageService
+ -> basai_originals
+ -> LaravelDiskAudioSource
+ -> AudioStager
+ -> FFmpeg normalizer
+ -> GpuSttClient
+ -> response/result
+```
+
+Sebelum implementasi controller, baca penuh kontrak `GpuSttClient` dan `RecordingStorageService` yang existing.
