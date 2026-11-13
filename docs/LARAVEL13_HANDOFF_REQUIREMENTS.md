@@ -60,6 +60,59 @@
 - Systemd tunnel di level server .95 adalah shared infra, tidak perlu digandakan per Laravel app; pastikan ownership, key, firewall dan port loopback dikelola secara eksplisit.
 - Perintah `basai:gpu-status` bukan bukti transkripsi berhasil; perlu pengujian end-to-end terpisah.
 
+## Pemeriksaan konfigurasi pipeline dan uji WAV
+
+Laporan operator 13 November 2026 menunjukkan disk `basai_originals` terdaftar, tetapi `config('basai.pipeline')` bernilai `null` saat dibaca lewat Artisan. `LaravelDiskAudioSource` kemudian menolak disk tersebut. Skrip yang memanggil `config()` sebelum bootstrap dapat memberi diagnosis keliru. Hasil dari Artisan tetap perlu ditelusuri pada konfigurasi sumber, cache, dan nama kunci yang dibaca adapter.
+
+| Area | Persyaratan **WAJIB** | Bukti penerimaan |
+| --- | --- | --- |
+| Konfigurasi runtime (M08) | Jalankan diagnosis melalui Artisan atau bootstrap console kernel. Untuk adapter yang ada, gunakan array `basai.pipeline` dan allowlist `basai.pipeline.source_disks`. Letakkan pengaturan GPU yang bekerja dan pipeline pada kunci masing-masing. | Nilai efektif bertipe array dan memuat disk sumber yang dimaksud. Hasil tetap benar pada keadaan cache yang dipakai deployment. |
+| Disk sumber dan staging (M02, M04) | Disk sumber harus terdaftar di `filesystems.disks`, ada di allowlist eksplisit dan bersifat privat. Adapter menerima disk dan path relatif dari rekaman terotorisasi, memvalidasi path, menyalin dengan stream ke staging privat, menegakkan batas sumber saat streaming, menghitung SHA-256 dan membersihkan file sementara setelah sukses maupun error. | Fixture dapat dibaca oleh identitas worker, checksum cocok, percobaan disk di luar allowlist ditolak. |
+| FFmpeg dan FFprobe (M04, M05) | Biner dapat dijalankan oleh worker. Gunakan argumen proses terpisah, timeout terbatas, input lokal yang sudah divalidasi, serta lokasi output privat. Validasi header WAV, codec PCM, durasi, ukuran dan kanal sebelum upload. | FFprobe melaporkan WAV PCM 16-bit yang kompatibel. Pertahankan kanal yang dibutuhkan. Untuk hasil multikanal, konfirmasikan header dapat dibaca oleh versi Python `wave` yang dipakai GPU. |
+| Pembagian audio (M05, M09) | Potong sebelum batas durasi dan byte GPU. Simpan offset tiap potongan serta pemetaan kanal dan gunakan keduanya ketika merakit timestamp. | Fixture panjang melewati alur potong dan gabung dengan urutan benar. Batas aktual deployment menjadi acuan jika lebih ketat dari default. |
+| Unggah dan transkripsi (M06, M07, M10, M14) | Laravel mengirim WAV via klien GPU terautentikasi, `POST /v1/stt/transcribe`, multipart `file`. Verifikasi checksum respons, simpan status `NEEDS_REVIEW`, segmen dan metadata tanpa mencetak isi audio, transkrip atau kredensial. | Satu fixture ucapan dummy melewati disk → staging → FFmpeg → GPU. Catat status, jumlah segmen, model/device dan kecocokan checksum. Uji queue dan pemulihan mengikuti M06 dan M14. |
+| Backup dan rollback (M13) | Sebelum patch, simpan salinan file yang akan diubah dan catat keadaan cache di lokasi privat. Perubahan dan rollback terbatas pada aplikasi target. | File asli dapat dipulihkan dengan mode dan pemilik yang tepat. Pulihkan keadaan cache aplikasi yang sama, lalu cek ulang kunci konfigurasi dan jalur uji yang terdampak. |
+
+### Probe read-only tanpa keluaran rahasia
+
+Jalankan dari root Laravel. Probe menggunakan console kernel sehingga Laravel memuat konfigurasi efektif sebagaimana Artisan.
+
+```bash
+php <<'PHP'
+<?php
+declare(strict_types=1);
+
+try {
+    require getcwd().'/vendor/autoload.php';
+    $app = require getcwd().'/bootstrap/app.php';
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+    $disk = 'basai_originals';
+    $pipeline = config('basai.pipeline');
+    $allowed = config('basai.pipeline.source_disks');
+    $registered = config('filesystems.disks', []);
+
+    echo json_encode([
+        'cache_active' => $app->configurationIsCached(),
+        'pipeline_type' => get_debug_type($pipeline),
+        'source_disks_type' => get_debug_type($allowed),
+        'disk_registered' => is_array($registered)
+            && is_array($registered[$disk] ?? null),
+        'disk_allowed' => is_array($allowed) && in_array($disk, $allowed, true),
+    ], JSON_THROW_ON_ERROR).PHP_EOL;
+} catch (Throwable) {
+    fwrite(STDERR, "Bootstrap Laravel gagal. Periksa detail secara lokal.\n");
+    exit(1);
+}
+PHP
+```
+
+1. Jika hasil masih `null`, periksa struktur `return` pada `config/basai.php` dan path config yang dibaca adapter. Saat cache aktif, bandingkan dengan hasil bootstrap proses terpisah memakai `APP_CONFIG_CACHE` yang menunjuk ke path privat yang belum ada. Perbandingan ini tidak perlu menghapus cache aktif.
+2. Jika kunci file sumber salah atau hilang, perbaiki kunci tersebut setelah backup. Jika konfigurasi tanpa cache benar sementara konfigurasi efektif berbeda, perbarui cache aplikasi ini sesuai prosedur deployment dan identitas eksekusinya. Pertahankan pengaturan GPU dan konfigurasi aplikasi lain.
+3. Jalankan satu uji dengan fixture ucapan dummy dari disk yang sekarang diizinkan, konversi FFmpeg dan upload WAV lewat klien Laravel yang sudah ada. Keluaran yang diminta ialah metadata verifikasi dari paket WAV dan respons GPU. Pemeriksaan HTTP 200 dan readiness yang telah lulus cukup dirujuk, kecuali perubahan menyentuh jalur tersebut.
+
+**Bukti sebelumnya dari operator:** HTTP 200, tunnel systemd port loopback `18167` aktif, dan Artisan GPU readiness melaporkan CONNECTED, CUDA tersedia dan model dimuat. Penerimaan pipeline menunggu bukti audit konfigurasi efektif dan pengujian transkripsi Laravel melalui FFmpeg.
+
 ## Definisi selesai dan urutan handoff
 
 1. Tim final memberi nama struktur project, skema metadata rekaman/job, disk storage, kebijakan auth/PP, dan worker yang akan dipakai.
@@ -69,3 +122,4 @@
 5. Catat persetujuan perubahan production, rollback, dan pemilik operasi.
 
 **Status baseline nyata:** `basai_tes` HTTP 200; file config dan service penyimpanan hanya lulus pemeriksaan syntax; Artisan authenticated GPU readiness = CONNECTED/CUDA available/model loaded; systemd tunnel active + enabled. **Belum** end-to-end transcribe via Laravel, belum durable queue, belum integrasi aplikasi tim final.
+
