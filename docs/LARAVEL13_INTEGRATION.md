@@ -231,3 +231,42 @@ HTTP upload / MediaRecorder
 ```
 
 Sebelum implementasi controller, baca penuh kontrak `GpuSttClient` dan `RecordingStorageService` yang existing.
+
+
+## GPU transcription API contract
+
+Kontrak endpoint yang dipakai integrasi Laravel:
+
+```text
+POST /v1/stt/transcribe
+Content-Type: multipart/form-data
+X-BASAI-Key: <secret>
+file: audio/wav
+```
+
+Laravel memanggil endpoint melalui:
+
+```text
+http://127.0.0.1:18167/v1/stt/transcribe
+```
+
+Respons sukses memuat:
+
+- `status`
+- `language`
+- `model`
+- `device`
+- `processing_seconds`
+- `segments[]` dengan informasi segment/timestamp/text/review
+
+Kontrak ini sudah dikenal dari pengujian GPU sebelumnya. Jangan membuat endpoint transkripsi alternatif pada Laravel.
+
+## Remaining verification budget
+
+Untuk mencegah audit berulang, sisa verifikasi dibatasi:
+
+1. FFmpeg tersedia dan normalisasi berhasil.
+2. Satu uji end-to-end WAV -> GPU Whisper.
+3. Satu uji UI upload/recording.
+
+Setelah tiga gerbang tersebut lulus, hentikan audit berulang dan lanjutkan integrasi aplikasi tim.
