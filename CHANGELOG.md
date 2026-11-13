@@ -239,3 +239,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Model: turbo; device: CUDA; language: id; STT segments: 2.
 - D4 acceptance criteria fulfilled: one browser upload produced speaker-labeled transcript in Laravel UI.
 - Next phase: per-session role mapping, e.g. SPEAKER_00 -> HAKIM and SPEAKER_01 -> SAKSI_1.
+
+
+### D5 admin settings and role mapping design
+- BAS-AI global settings will live under the existing Admin/Settings area.
+- Global configuration includes role catalog, channel profiles, diarization policy, STT policy, satker identity, device settings, and integration settings.
+- Diarization IDs such as `SPEAKER_00` are **not global configuration**; they are mapped to legal roles per hearing/session.
+- Session mapping and admin settings use separate authorization.
+- Details: `docs/ADMIN_SETTINGS_ROLE_MAPPING.md`.
