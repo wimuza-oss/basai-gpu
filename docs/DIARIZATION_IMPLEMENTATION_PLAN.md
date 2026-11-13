@@ -245,3 +245,44 @@ SPEAKER_01  3710ms -> 6680ms
 For this sample, exclusive diarization and regular speaker activity produced the same two turns.
 
 Next checkpoint: **D4 Whisper + diarization timestamp alignment** to produce canonical speaker-labeled transcript segments.
+
+
+## D4 revised acceptance criteria
+
+D4 tidak dianggap selesai hanya dengan CLI atau script alignment.
+
+Acceptance test wajib dilakukan melalui halaman test Laravel yang sama dengan E2E STT sebelumnya:
+
+```text
+Upload WAV/WebM/MP3
+ -> Laravel
+ -> private original storage
+ -> normalization
+ -> Whisper STT
+ -> diarization service
+ -> timestamp alignment
+ -> speaker-labeled transcript
+ -> rendered on test page
+```
+
+Target tampilan:
+
+```text
+SPEAKER_00:
+Saudara saksi, apakah saudara kenal dengan penggugat?
+
+SPEAKER_01:
+Kenal Yang Mulia, saya kakak kandungnya.
+```
+
+Setelah itu role mapping dapat mengubah label menjadi:
+
+```text
+Hakim:
+...
+
+Saksi 1:
+...
+```
+
+D4 PASS hanya jika satu upload dari browser menghasilkan transcript berlabel speaker pada UI Laravel.
