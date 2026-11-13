@@ -150,15 +150,14 @@ Client GPU harus memakai endpoint dari konfigurasi, timeout eksplisit, error map
 
 ## Urutan verifikasi integrasi
 
-1. Audit read-only konfigurasi Laravel yang benar-benar ter-bootstrap.
-2. Backup `config/basai.php`, `config/filesystems.php`, dan file service yang akan diubah.
-3. Patch hanya file di aplikasi `basai_tes`.
-4. Bersihkan config cache aplikasi tersebut bila cache terbukti stale.
-5. Verifikasi `basai.pipeline` dan `basai_originals`.
-6. Verifikasi FFmpeg tersedia.
-7. Uji normalisasi satu WAV non-sensitif.
-8. Uji transkripsi WAV melalui client GPU yang sudah terbukti terkoneksi.
-9. Dokumentasikan hasil, rollback, dan file yang berubah.
+1. Audit read-only konfigurasi Laravel yang benar-benar ter-bootstrap. **SELESAI**
+2. Backup `config/basai.php` sebelum patch. **SELESAI**
+3. Perbaiki nesting `basai.gpu.pipeline` menjadi `basai.pipeline`. **SELESAI**
+4. Verifikasi `basai.pipeline` dan `basai_originals`. **SELESAI**
+5. Verifikasi FFmpeg tersedia. **PENDING**
+6. Uji normalisasi satu WAV non-sensitif. **PENDING**
+7. Uji transkripsi WAV melalui client GPU yang sudah terbukti terkoneksi. **PENDING**
+8. Dokumentasikan hasil, rollback, dan file yang berubah. **BERJALAN**
 
 ## Batas perubahan
 
