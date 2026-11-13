@@ -270,3 +270,31 @@ Untuk mencegah audit berulang, sisa verifikasi dibatasi:
 3. Satu uji UI upload/recording.
 
 Setelah tiga gerbang tersebut lulus, hentikan audit berulang dan lanjutkan integrasi aplikasi tim.
+
+
+## Host dependency: FFmpeg
+
+FFmpeg merupakan dependency **WAJIB** pada host Laravel untuk normalisasi audio menjadi format input Whisper yang konsisten.
+
+Target host:
+
+```text
+192.168.16.95
+Ubuntu 22.04
+```
+
+Paket yang disetujui:
+
+```text
+ffmpeg 7:4.4.2-0ubuntu0.22.04.1
+```
+
+Kebijakan:
+
+- install melalui repository Ubuntu resmi;
+- jangan menggunakan binary acak dari internet;
+- aplikasi Laravel menjalankan FFmpeg melalui Laravel Process API / Symfony Process;
+- input user tidak boleh digabungkan menjadi shell command string;
+- output normalisasi: WAV, PCM signed 16-bit little-endian, 16 kHz, mono;
+- source original tidak boleh ditimpa;
+- temporary output wajib dibersihkan setelah proses.
