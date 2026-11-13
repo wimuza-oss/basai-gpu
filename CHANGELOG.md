@@ -23,8 +23,14 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - `config/basai.php` menempatkan `pipeline` di bawah `gpu`, sehingga Laravel membentuk `basai.gpu.pipeline` sementara service membaca `basai.pipeline.*`.
 - Perbaikan yang disetujui: pindahkan hanya blok `pipeline` ke level top-level `basai`; jangan mengubah konfigurasi GPU yang telah lulus.
 
+### Fixed / Verified
+- `config/basai.php` diperbaiki dari `basai.gpu.pipeline` menjadi top-level `basai.pipeline`.
+- `config('basai.pipeline')` terverifikasi sebagai array.
+- `config('basai.pipeline.source_disks')` terverifikasi berisi `basai_originals`.
+- `LaravelDiskAudioSource` kini menerima disk `basai_originals` melalui allowlist konfigurasi.
+- HTTP `/basai_tes` tetap 200 setelah patch konfigurasi.
+
 ### Current known issues
-- Patch nesting `config/basai.php` belum dicatat sebagai terverifikasi sampai validasi runtime selesai.
 - FFmpeg belum ditemukan di PATH pada audit terakhir.
 
 ### Verified baseline
