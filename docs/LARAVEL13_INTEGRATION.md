@@ -384,3 +384,12 @@ Hasil terverifikasi:
 - transcript berhasil ditampilkan pada halaman Laravel.
 
 GPU mengembalikan status `NEEDS_REVIEW`. Status ini adalah metadata hasil transkripsi dan bukan kegagalan pipeline.
+
+
+## Next architecture phase
+
+Setelah E2E single-stream selesai, tahap berikutnya adalah hybrid multichannel + speaker diarization. Lihat:
+
+`docs/SPEAKER_DIARIZATION_ARCHITECTURE.md`
+
+Desain wajib mendukung 4-channel dan 8-channel tanpa hard-coded channel-role mapping.
