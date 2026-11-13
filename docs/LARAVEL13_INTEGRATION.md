@@ -319,3 +319,31 @@ basai.pipeline.*
 ```
 
 Disk `basai_originals` pada `config/filesystems.php` dan `basai.recordings.originals_root` harus menunjuk storage root yang sama pada deployment sementara.
+
+
+## Audio input format policy
+
+Format input yang didukung aplikasi harus fleksibel:
+
+- WAV
+- MP3
+- WebM
+
+Pipeline internal tetap tunggal:
+
+```text
+WAV / MP3 / WebM
+ -> private original storage
+ -> AudioStager
+ -> FFmpeg
+ -> WAV pcm_s16le / 16000 Hz / mono
+ -> GPU Whisper
+```
+
+WAV dipilih sebagai **format internal inference**, bukan sebagai kewajiban format upload pengguna.
+
+MP3 bersifat lossy. Mengubah MP3 menjadi WAV tidak mengembalikan detail audio yang sudah hilang, tetapi normalisasi tetap diperlukan agar input ke GPU konsisten.
+
+### Current E2E finding
+
+Percobaan WAV pertama telah berhasil melewati storage, staging, dan normalisasi serta mencapai `GpuSttClient::transcribe()`. Error terjadi saat Laravel memvalidasi item `segments` dari respons GPU. Karena itu pergantian input menjadi MP3 tidak akan memperbaiki error parser tersebut; kontrak respons GPU harus diselaraskan.
