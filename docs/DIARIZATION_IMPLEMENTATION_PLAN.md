@@ -160,3 +160,34 @@ Sebelum instalasi/model download:
 ### D6 — 8-channel expansion
 - dynamic channel configuration
 - no schema redesign
+
+
+## D1 result
+
+Status: **PASS**
+
+- GPU: RTX 5060 Ti 16 GB
+- VRAM used with basai-stt loaded: ~1.2 GB
+- VRAM free: ~14.6 GB
+- RAM available: ~26 GB
+- /data available: ~1.4 TB
+- basai-stt:6.6.0 healthy on 127.0.0.1:18066
+- port 18067 reserved for basai-diarization
+
+## D2 dependency baseline
+
+Pinned baseline:
+
+- Python 3.11
+- pyannote.audio 4.0.7
+- torch 2.10.0
+- torchaudio 2.10.0
+- torchcodec 0.10.0
+- CUDA wheel: cu130
+
+Privacy:
+
+- PYANNOTE_METRICS_ENABLED=0
+- HF_HUB_DISABLE_TELEMETRY=1
+- Hugging Face token is download-only and must never be committed or baked into the image.
+- Runtime model is loaded from a local read-only mount.
