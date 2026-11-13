@@ -88,3 +88,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - `config/basai.php` masih menempatkan `recordings` di bawah `gpu`, sehingga key runtime yang tersedia adalah `basai.gpu.recordings`.
 - Sebelum UI test dibuat, blok `recordings` harus dipindahkan ke top-level `basai.recordings`, sama seperti perbaikan `pipeline`.
 - Patch ini akan digabung dengan implementasi halaman test agar tidak menambah siklus audit terpisah.
+
+
+### Laravel CLI compatibility note
+- Laravel 13.42.0 pada host sementara tidak mendukung opsi `php artisan route:list --columns=...`.
+- Gunakan `php artisan route:list --path=basai/test` tanpa `--columns`.
+- Syntax modul test dan konfigurasi `basai.recordings` / `basai.pipeline` sudah lulus; kegagalan opsi CLI ini bukan kegagalan aplikasi.
