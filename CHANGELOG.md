@@ -198,3 +198,15 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Additional diarization GPU memory observed: ~212 MiB.
 - Existing `basai-stt` remained running at ~1196 MiB VRAM.
 - No change made to the stable STT container.
+
+
+### D3 two-speaker single-channel diarization: PASS
+- One mono/shared-channel WAV containing two speakers was processed successfully.
+- Engine: pyannote Community-1 on CUDA.
+- Processing time: 0.594 s.
+- Detected speakers: 2.
+- SPEAKER_00: 31 ms - 3440 ms.
+- SPEAKER_01: 3710 ms - 6680 ms.
+- Gap between turns: ~270 ms.
+- Exclusive diarization and regular speaker activity agreed for this sample.
+- This validates the shared-channel strategy for Saksi 1 / Saksi 2 or other role pairs.
