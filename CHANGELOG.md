@@ -217,3 +217,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Whisper E2E remains healthy: model `turbo`, CUDA, Indonesian language, 2 segments, processing ~0.275 s.
 - No speaker labels are rendered yet; diarization is not yet integrated into Laravel.
 - D4 remains **NOT PASS** until browser upload invokes diarization, aligns timestamps, and renders speaker-labeled transcript.
+
+
+### D4 diarization SSH tunnel: PASS
+- Laravel host successfully reaches diarization through a dedicated SSH tunnel.
+- Local mapping: `127.0.0.1:18168 -> GPU 127.0.0.1:18067`.
+- GPU readiness returned `cuda_available`, model `community-1`, device `cuda`.
+- SSH authorized_keys policy now explicitly permits both `127.0.0.1:18066` (STT) and `127.0.0.1:18067` (diarization).
+- STT tunnel remains isolated on `127.0.0.1:18167`.
