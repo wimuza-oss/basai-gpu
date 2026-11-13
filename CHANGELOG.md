@@ -47,3 +47,13 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Belum ditemukan route/controller BAS-AI pada audit terakhir.
 - Belum ditemukan class normalizer FFmpeg pada audit terakhir.
 - Kontrak metode transkripsi pada `GpuSttClient` masih perlu dibaca sebelum membuat test UI agar tidak membuat jalur integrasi paralel.
+
+
+### GPU transcription contract recovered
+- Endpoint transkripsi GPU yang pernah diuji sebelumnya: `POST /v1/stt/transcribe`.
+- Request: multipart/form-data field `file`, tipe audio WAV.
+- Authentication: header `X-BASAI-Key`.
+- Laravel mengakses endpoint tersebut melalui tunnel lokal `127.0.0.1:18167`.
+- Respons sukses memuat metadata status/language/model/device/processing_seconds dan `segments[]`.
+- Dengan kontrak ini, tidak diperlukan audit tambahan untuk mencari endpoint GPU.
+- Sisa verifikasi dibatasi menjadi tiga gerbang: FFmpeg, satu E2E WAV->GPU, satu UI upload/recording.
