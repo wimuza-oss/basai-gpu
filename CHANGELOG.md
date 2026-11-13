@@ -132,3 +132,14 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - GPU status: `NEEDS_REVIEW`.
 - Transcript returned successfully to the Laravel page.
 - `NEEDS_REVIEW` is treated as a model/result review state, not a transport or pipeline failure.
+
+
+### Checkpoint: single-stream E2E complete
+- Checkpoint 2026-11-13: integrasi Laravel 13 -> FFmpeg -> GPU Whisper -> transcript UI dinyatakan berhasil dan dihentikan sementara pada titik ini.
+- Tahap berikutnya yang direncanakan: speaker diarization dan role mapping untuk memisahkan ucapan Hakim, Penggugat, Tergugat, Saksi 1, Saksi 2, dan peran lain.
+- Gender suara tidak boleh dijadikan identitas hukum/peran. Role harus dipetakan dari konteks sidang, channel/microphone, atau assignment eksplisit.
+- Target output masa depan:
+  - Hakim: pertanyaan...
+  - Saksi 1: jawaban...
+  - Hakim: pertanyaan...
+  - Penggugat: jawaban...
