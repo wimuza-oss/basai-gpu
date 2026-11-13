@@ -347,3 +347,16 @@ MP3 bersifat lossy. Mengubah MP3 menjadi WAV tidak mengembalikan detail audio ya
 ### Current E2E finding
 
 Percobaan WAV pertama telah berhasil melewati storage, staging, dan normalisasi serta mencapai `GpuSttClient::transcribe()`. Error terjadi saat Laravel memvalidasi item `segments` dari respons GPU. Karena itu pergantian input menjadi MP3 tidak akan memperbaiki error parser tersebut; kontrak respons GPU harus diselaraskan.
+
+
+## GPU segment response compatibility
+
+Confirmed successful GPU response uses segment objects containing:
+
+- `start_ms`
+- `end_ms`
+- `raw_text`
+
+Laravel must read `raw_text` as the primary transcript field. For portability across GPU service versions, `text` may be accepted as a fallback.
+
+Do not reject a valid segment merely because `text` is absent when `raw_text` is present.
