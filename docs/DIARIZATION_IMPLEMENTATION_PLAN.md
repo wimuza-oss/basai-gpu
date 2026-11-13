@@ -210,3 +210,21 @@ Model tree includes:
 - segmentation
 
 D2B may now build the isolated diarization container using a read-only local model mount. No Hugging Face token is required at runtime.
+
+
+## D2B result
+
+Status: **PASS**
+
+```text
+basai-diarization:1.0.0
+127.0.0.1:18067 -> 8000
+model: community-1
+device: cuda
+ready: true
+additional VRAM: ~212 MiB
+```
+
+Stable STT remained online and unchanged.
+
+Next checkpoint: **D3 single shared-channel diarization test using a real two-speaker WAV**.
