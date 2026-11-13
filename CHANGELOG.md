@@ -153,3 +153,16 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Canonical data tetap ordered speaker turns; format Tanya/Jawab merupakan derived view.
 - Crosstalk/microphone bleed harus ditangani dengan channel dominance + diarization evidence + confidence/NEEDS_REVIEW.
 - Detail desain: `docs/SPEAKER_DIARIZATION_ARCHITECTURE.md`.
+
+
+### D1 diarization GPU audit: PASS
+- GPU host: Ubuntu 26.04.1 LTS, kernel 7.0.0-43.
+- GPU: NVIDIA GeForce RTX 5060 Ti 16 GB.
+- Driver 595.99.02; CUDA driver capability 13.2.
+- STT active GPU usage: ~1210 MiB; free VRAM ~14641 MiB.
+- System RAM available ~26 GiB; swap unused.
+- /data available ~1.4 TiB.
+- Existing basai-stt:6.6.0 healthy on 127.0.0.1:18066.
+- Port 18067 selected for isolated basai-diarization service.
+- bas-ollama container is running but no separate GPU compute process was observed during D1.
+- D2 decision: keep diarization in a separate container and preserve basai-stt unchanged.
