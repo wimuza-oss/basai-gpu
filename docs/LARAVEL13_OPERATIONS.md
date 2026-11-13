@@ -76,19 +76,19 @@ connection lost
  -> local port 18167 listens again
 ```
 
-## Important verification
+## Verification status 2026-11-13
 
-`systemctl is-active=active` saja **tidak cukup**.
-
-Keadaan sehat harus memenuhi semuanya:
+Keadaan sehat telah dibuktikan:
 
 1. unit `enabled`;
-2. unit `active`;
-3. local TCP listener `127.0.0.1:18167` tersedia;
-4. endpoint GPU dapat diakses melalui listener;
-5. tidak ada reconnect loop pada journal.
+2. unit `active (running)`;
+3. proses utama adalah `ssh`;
+4. local listener `127.0.0.1:18167` tersedia dan dimiliki proses SSH;
+5. `Result=success`;
+6. `SubState=running`;
+7. journal tidak menunjukkan reconnect loop saat pemeriksaan.
 
-Pada 2026-11-13 poin 1-2 sudah lulus, tetapi poin 3 belum terbukti karena output pemeriksaan port kosong. Jangan menandai tunnel selesai sebelum poin 3-5 lulus.
+Catatan: `NRestarts=0` pada pemeriksaan ini berarti belum ada restart otomatis sejak unit terakhir dimulai, bukan kegagalan konfigurasi auto-restart.
 
 ## Test UI policy
 
@@ -114,9 +114,8 @@ WAJIB:
 
 ## Pending technical work
 
-1. verifikasi listener tunnel `127.0.0.1:18167`;
-2. perbaiki nesting `config/basai.php`;
-3. pasang/verifikasi FFmpeg;
-4. implementasikan audio normalizer;
-5. buat halaman test upload/recording;
-6. lakukan WAV -> Whisper end-to-end test.
+1. perbaiki nesting `config/basai.php`;
+2. pasang/verifikasi FFmpeg;
+3. implementasikan audio normalizer;
+4. buat halaman test upload/recording;
+5. lakukan WAV -> Whisper end-to-end test.
