@@ -210,3 +210,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Gap between turns: ~270 ms.
 - Exclusive diarization and regular speaker activity agreed for this sample.
 - This validates the shared-channel strategy for Saksi 1 / Saksi 2 or other role pairs.
+
+
+### D4 Laravel UI baseline: STT-only confirmed
+- Browser upload at `/basai/test` still returns the existing STT-only result.
+- Whisper E2E remains healthy: model `turbo`, CUDA, Indonesian language, 2 segments, processing ~0.275 s.
+- No speaker labels are rendered yet; diarization is not yet integrated into Laravel.
+- D4 remains **NOT PASS** until browser upload invokes diarization, aligns timestamps, and renders speaker-labeled transcript.
