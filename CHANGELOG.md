@@ -225,3 +225,17 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - GPU readiness returned `cuda_available`, model `community-1`, device `cuda`.
 - SSH authorized_keys policy now explicitly permits both `127.0.0.1:18066` (STT) and `127.0.0.1:18067` (diarization).
 - STT tunnel remains isolated on `127.0.0.1:18167`.
+
+
+### D4 Laravel UI diarization E2E: PASS
+- Browser upload through `/basai/test` successfully executed the full application path.
+- Whisper transcript:
+  - `Saudara saksi, apakah saudara kenal dengan penggugat?`
+  - `Kenal yang mulia, saya kakak kandungnya.`
+- Speaker alignment result:
+  - SPEAKER_00: 0.00s - 3.38s, confidence 0.991.
+  - SPEAKER_01: 3.74s - 6.56s, confidence 1.000.
+- Whisper processing time: ~0.264 s.
+- Model: turbo; device: CUDA; language: id; STT segments: 2.
+- D4 acceptance criteria fulfilled: one browser upload produced speaker-labeled transcript in Laravel UI.
+- Next phase: per-session role mapping, e.g. SPEAKER_00 -> HAKIM and SPEAKER_01 -> SAKSI_1.
