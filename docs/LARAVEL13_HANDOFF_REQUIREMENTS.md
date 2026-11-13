@@ -62,7 +62,17 @@
 
 ## Pemeriksaan konfigurasi pipeline dan uji WAV
 
-Laporan operator 13 November 2026 menunjukkan disk `basai_originals` terdaftar, tetapi `config('basai.pipeline')` bernilai `null` saat dibaca lewat Artisan. `LaravelDiskAudioSource` kemudian menolak disk tersebut. Skrip yang memanggil `config()` sebelum bootstrap dapat memberi diagnosis keliru. Hasil dari Artisan tetap perlu ditelusuri pada konfigurasi sumber, cache, dan nama kunci yang dibaca adapter.
+Audit read-only dari sesi SSH operator pada 13 November 2026 memuat console kernel Laravel. Konfigurasi efektif dan proses pembanding menghasilkan hasil yang sama.
+
+```text
+cache=no pipeline=null allowlist=null disk_registered=yes disk_allowed=no
+```
+
+Disk `basai_originals` sudah terdaftar. Laravel tidak memuat nilai efektif untuk `basai.pipeline` serta `basai.pipeline.source_disks`. Cache konfigurasi nonaktif pada kedua proses. Skrip lama yang memuat `config/basai.php` langsung dari PHP tanpa bootstrap tidak dapat dijadikan acuan untuk konfigurasi runtime. Hasil bootstrap ini mengisolasi masalah ke sumber atau pemetaan konfigurasi pipeline.
+
+**Perbaikan yang disiapkan.** Periksa file konfigurasi dan kunci yang dibaca `LaravelDiskAudioSource` serta `AudioStager`. Setelah membuat backup privat, tambahkan atau perbaiki bagian `pipeline` pada konfigurasi BAS-AI yang sudah ada. Cocokkan `source_disks`, `work_directory` dan `max_source_bytes` dengan implementasi yang terpasang. Gunakan allowlist eksplisit yang memuat `basai_originals` untuk pilot. Pertahankan konfigurasi klien GPU yang sudah lulus readiness. Instalasi patch, verifikasi FFmpeg dan uji WAV melalui Laravel masih tertunda.
+
+**Rollback.** Pulihkan file konfigurasi dari backup dengan mode dan pemilik awal. Cache awal pada audit ini nonaktif. Lakukan verifikasi kunci pipeline melalui bootstrap Artisan setelah pemulihan.
 
 | Area | Persyaratan **WAJIB** | Bukti penerimaan |
 | --- | --- | --- |
@@ -111,7 +121,7 @@ PHP
 2. Jika kunci file sumber salah atau hilang, perbaiki kunci tersebut setelah backup. Jika konfigurasi tanpa cache benar sementara konfigurasi efektif berbeda, perbarui cache aplikasi ini sesuai prosedur deployment dan identitas eksekusinya. Pertahankan pengaturan GPU dan konfigurasi aplikasi lain.
 3. Jalankan satu uji dengan fixture ucapan dummy dari disk yang sekarang diizinkan, konversi FFmpeg dan upload WAV lewat klien Laravel yang sudah ada. Keluaran yang diminta ialah metadata verifikasi dari paket WAV dan respons GPU. Pemeriksaan HTTP 200 dan readiness yang telah lulus cukup dirujuk, kecuali perubahan menyentuh jalur tersebut.
 
-**Bukti sebelumnya dari operator:** HTTP 200, tunnel systemd port loopback `18167` aktif, dan Artisan GPU readiness melaporkan CONNECTED, CUDA tersedia dan model dimuat. Penerimaan pipeline menunggu bukti audit konfigurasi efektif dan pengujian transkripsi Laravel melalui FFmpeg.
+**Bukti sebelumnya dari operator:** HTTP 200, tunnel systemd port loopback `18167` aktif, dan Artisan GPU readiness melaporkan CONNECTED, CUDA tersedia dan model dimuat. Audit konfigurasi efektif sudah tercatat di atas. Penerimaan pipeline masih memerlukan verifikasi pascaperbaikan dan pengujian transkripsi Laravel melalui FFmpeg.
 
 ## Definisi selesai dan urutan handoff
 
