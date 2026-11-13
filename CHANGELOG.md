@@ -143,3 +143,13 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
   - Saksi 1: jawaban...
   - Hakim: pertanyaan...
   - Penggugat: jawaban...
+
+
+### Hybrid channel identity + diarization design
+- Arsitektur speaker identification ditetapkan sebagai hybrid: channel identity + per-channel speaker diarization.
+- 4-channel baseline mendukung shared witness channel untuk Saksi 1/Saksi 2.
+- 8-channel baseline disiapkan tanpa perubahan schema inti.
+- Role mapping wajib configurable per sidang; channel number tidak di-hard-code sebagai identitas hukum.
+- Canonical data tetap ordered speaker turns; format Tanya/Jawab merupakan derived view.
+- Crosstalk/microphone bleed harus ditangani dengan channel dominance + diarization evidence + confidence/NEEDS_REVIEW.
+- Detail desain: `docs/SPEAKER_DIARIZATION_ARCHITECTURE.md`.
