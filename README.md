@@ -12,6 +12,8 @@ Integrasi sementara sedang diuji pada aplikasi Laravel 13:
 
 ### Terverifikasi 2026-11-13
 
+- **E2E transcription: verified** — upload WAV berhasil sampai transcript tampil di Laravel.
+
 - Laravel 13.42.0 / PHP 8.3.36.
 - HTTP `/basai_tes` kembali **200**.
 - `.env` tersedia dan `APP_KEY` terbaca oleh bootstrap Laravel.
