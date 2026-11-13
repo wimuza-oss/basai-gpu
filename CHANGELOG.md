@@ -81,3 +81,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Normalizer menggunakan Symfony Process dengan argument array, bukan shell command concatenation.
 - Output contract: WAV / pcm_s16le / 16 kHz / mono, diverifikasi kembali melalui FFprobe.
 - Temporary output dibersihkan melalui `finally`.
+
+
+### Recording config nesting issue identified
+- `RecordingStorageService` membaca `config('basai.recordings.originals_root')`.
+- `config/basai.php` masih menempatkan `recordings` di bawah `gpu`, sehingga key runtime yang tersedia adalah `basai.gpu.recordings`.
+- Sebelum UI test dibuat, blok `recordings` harus dipindahkan ke top-level `basai.recordings`, sama seperti perbaikan `pipeline`.
+- Patch ini akan digabung dengan implementasi halaman test agar tidak menambah siklus audit terpisah.
