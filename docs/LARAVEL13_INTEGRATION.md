@@ -155,7 +155,7 @@ Client GPU harus memakai endpoint dari konfigurasi, timeout eksplisit, error map
 3. Perbaiki nesting `basai.gpu.pipeline` menjadi `basai.pipeline`. **SELESAI**
 4. Verifikasi `basai.pipeline` dan `basai_originals`. **SELESAI**
 5. Verifikasi FFmpeg tersedia. **SELESAI — ffmpeg/ffprobe 4.4.2**
-6. Uji normalisasi satu WAV non-sensitif. **PENDING**
+6. Implementasi normalizer FFmpeg. **SELESAI — syntax/config verified; runtime conversion digabung ke E2E**
 7. Uji transkripsi WAV melalui client GPU yang sudah terbukti terkoneksi. **PENDING**
 8. Dokumentasikan hasil, rollback, dan file yang berubah. **BERJALAN**
 
