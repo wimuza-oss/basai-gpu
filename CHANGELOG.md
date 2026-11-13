@@ -16,9 +16,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - `.env` dipastikan dapat dibaca dan `APP_KEY` lama dipertahankan.
 - Permission `.env` disetel terbatas untuk owner dan group web.
 - `basai-gpu-tunnel.service` terverifikasi `enabled`, `active`, `Restart=always`, dan restart delay 10 detik.
+- Listener `127.0.0.1:18167` terverifikasi LISTEN oleh proses SSH.
+- Tunnel berjalan stabil dengan `Result=success`, `SubState=running`, dan tanpa reconnect loop pada journal saat pemeriksaan.
 
 ### Current known issues
-- Listener lokal tunnel `127.0.0.1:18167` belum terverifikasi setelah hardening unit; output pemeriksaan port terakhir kosong.
 - `config("basai.pipeline")` masih `null`.
 - `LaravelDiskAudioSource` menolak `basai_originals` karena allowlist pipeline tidak termuat.
 - FFmpeg belum ditemukan di PATH pada audit terakhir.
