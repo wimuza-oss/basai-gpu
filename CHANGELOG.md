@@ -166,3 +166,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Port 18067 selected for isolated basai-diarization service.
 - bas-ollama container is running but no separate GPU compute process was observed during D1.
 - D2 decision: keep diarization in a separate container and preserve basai-stt unchanged.
+
+
+### D2A diarization model offline: PASS
+- Model `pyannote/speaker-diarization-community-1` berhasil diunduh pada 2026-11-13.
+- Local path: `/data/stt/diarization-models/community-1`.
+- Download completed: 10/10 files.
+- Offline model size: ~33 MiB.
+- Runtime diarization tidak memerlukan Hugging Face token.
+- Token tidak disimpan ke GitHub/image/runtime config.
