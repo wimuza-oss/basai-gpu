@@ -1,0 +1,48 @@
+services:
+  basai-diarization:
+    build:
+      context: .
+    image: basai-diarization:1.0.0
+    container_name: basai-diarization
+    restart: unless-stopped
+    init: true
+    gpus: all
+
+    env_file:
+      - .env
+
+    environment:
+      PYANNOTE_METRICS_ENABLED: "0"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      HF_HUB_OFFLINE: "1"
+      HOME: /tmp
+      XDG_CACHE_HOME: /tmp/.cache
+      TORCH_HOME: /tmp/torch
+
+    volumes:
+      - /data/stt/diarization-models/community-1:/models/community-1:ro
+
+    ports:
+      - "127.0.0.1:18067:8000"
+
+    read_only: true
+
+    tmpfs:
+      - /tmp:size=2147483648,mode=1777
+
+    cap_drop:
+      - ALL
+
+    security_opt:
+      - no-new-privileges:true
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
