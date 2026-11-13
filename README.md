@@ -22,7 +22,9 @@ Integrasi sementara sedang diuji pada aplikasi Laravel 13:
 - Unit `basai-gpu-tunnel.service` terverifikasi `enabled` dan `active`, `Restart=always`, `RestartSec=10s`.
 - Listener lokal `127.0.0.1:18167` terverifikasi LISTEN oleh proses SSH.
 - Journal tidak menunjukkan reconnect loop; `Result=success`, `SubState=running`.
-- **Isu aplikasi aktif:** `config("basai.pipeline") === null`; nesting `config/basai.php` harus diperbaiki sebelum pipeline audio digunakan.
+- `config('basai.pipeline')` terverifikasi valid pada runtime Laravel.
+- `basai_originals` terverifikasi masuk allowlist pipeline.
+- HTTP tetap 200 setelah perbaikan nesting konfigurasi.
 - **FFmpeg belum ditemukan di PATH** pada audit terakhir.
 
 ## Dokumen
