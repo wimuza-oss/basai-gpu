@@ -277,3 +277,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - New Laravel host is `192.168.16.95`.
 - Preferred action: audit grants, then rename the MariaDB account host from `192.168.16.86` to `192.168.16.95` so password hash and grants are preserved.
 - Do not reuse `basai@%` or root/admin accounts.
+
+
+### D5 runtime database grants audited
+- Existing `basai_app@192.168.16.86` has only:
+  - `USAGE` globally;
+  - `SELECT, INSERT, UPDATE, DELETE` on `basai.*`.
+- Grants are appropriate for Laravel runtime and should be preserved when renaming the host binding to `192.168.16.95`.
+- Runtime account intentionally has no DDL privileges. Laravel schema migrations must use a separate migrator/admin credential.
+- Credential hashes/passwords are not recorded in repository documentation.
