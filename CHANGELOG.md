@@ -430,3 +430,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Confirmed `sys_user_group(userid, groupid)` as the SIPP user-to-group membership table.
 - BAS-AI admin access is membership in enabled SIPP `Super Administrator` group `groupid=1`.
 - SIPP authorization tables remain read-only from BAS-AI.
+
+
+### D5D login eligibility finalized
+- SIPP password format confirmed as legacy 32-character hexadecimal MD5-compatible hashes.
+- BAS-AI login is restricted to enabled Super Administrator users and enabled users in the Panitera hierarchy rooted at `groupid=30`.
+- Panitera descendants are included through SIPP nested-set `lft/rgt`; this includes Panitera Pengganti (`groupid=500`).
+- Super Administrator remains the BAS-AI Admin role; Panitera hierarchy users are operational users by default.
