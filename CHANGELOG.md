@@ -333,3 +333,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - D5 will not create a redundant `basai_hearing_sessions` table.
 - Speaker mappings will be scoped directly to `hearing_id` + `case_id`.
 - No legacy tables or Alembic metadata will be modified.
+
+
+### D5 authorization boundary clarified
+- Laravel application Admin privileges are separate from MariaDB DDL privileges.
+- Admin users may manage BAS-AI settings through Laravel authorization while the application continues using the least-privilege runtime account `basai_app`.
+- Schema changes are an operational/deployment concern, not a capability granted to Laravel Admin users.
+- User authorization granted for schema/data changes **only inside database `basai`**. Other databases/schemas must not be modified.
+- Laravel migrations remain useful for versioning and rollback documentation, but are not a prerequisite for the Admin UI itself.
