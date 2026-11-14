@@ -323,3 +323,30 @@ basai_captures
 basai_hearing_completions
 jobs
 ```
+
+
+## Authorization boundary: Laravel Admin vs Database DDL
+
+Laravel Admin privileges and database schema privileges are different layers.
+
+```text
+Laravel Admin
+-> application authorization
+-> may edit permitted BAS-AI settings
+-> uses normal runtime DB connection
+
+Database DDL operator
+-> deployment/schema maintenance only
+-> CREATE/ALTER/DROP when required
+-> never exposed to normal Admin UI
+```
+
+The runtime account remains least-privilege.
+
+Authorized modification scope for this project is strictly:
+
+```text
+database: basai
+```
+
+No other database/schema may be altered.
