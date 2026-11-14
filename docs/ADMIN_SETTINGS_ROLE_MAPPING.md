@@ -506,3 +506,27 @@ Read-only inspection of `soreang.sys_groups` confirms:
 BAS-AI must not infer administrator access merely from a group name. The current candidate for active SIPP administrator equivalence is membership in enabled group `1`, subject to confirmation of the `sys_user_group` membership contract.
 
 The SIPP menu authorization model also includes `sys_menu_rule(menuid, ruleid)`; BAS-AI will not mutate these SIPP tables.
+
+
+## Final BAS-AI admin predicate
+
+The SIPP membership contract is confirmed:
+
+```text
+sys_user_group
+PRIMARY KEY (userid, groupid)
+userid  -> sys_users.userid
+groupid -> sys_groups.groupid
+```
+
+BAS-AI administrator authorization:
+
+```text
+authenticated sys_users.userid
+AND EXISTS sys_user_group(userid = current_user, groupid = 1)
+AND sys_groups(groupid = 1).enable = 1
+```
+
+Group 1 is the enabled `Super Administrator` group.
+
+BAS-AI reads this authorization from SIPP and does not mutate SIPP membership/group data.
