@@ -14,6 +14,7 @@ ALTER TABLE basai_pembicara
     DROP FOREIGN KEY fk_pembicara_peran;
 
 ALTER TABLE basai_media_sidang
+    CHANGE COLUMN userid owner_id INT NOT NULL,
     CHANGE COLUMN sidang_id hearing_id BIGINT NOT NULL,
     CHANGE COLUMN perkara_id case_id BIGINT NOT NULL,
     CHANGE COLUMN tanggal_sidang hearing_date DATE NOT NULL,
