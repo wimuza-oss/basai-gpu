@@ -480,3 +480,17 @@ Important conclusions:
 - There is no direct administrator flag in `sys_users`.
 - BAS-AI administrator authorization must be derived from the existing SIPP group/rule model (for example `sys_user_group`, `sys_groups`, and related rule tables) or from the exact rule used by the existing BAS application.
 - Password verification must replicate the existing BAS/SIPP authentication contract exactly; the hash algorithm must be confirmed from existing application code rather than inferred.
+
+
+## Authentication deployment conclusion
+
+Inspection of the legacy BAS source and Apache configuration found no evidence of BAS application login/shared session and no Apache authentication layer. Apache is acting as a reverse proxy/access layer only.
+
+Therefore BAS-AI Laravel will:
+
+- provide its own login form and Laravel session;
+- verify credentials against read-only SIPP `sys_users`;
+- use `userid` as the canonical user identity;
+- derive BAS-AI administrator authorization from the existing SIPP group/rule model;
+- never create a second BAS-AI password/user directory;
+- never write authentication state back to the SIPP database.
