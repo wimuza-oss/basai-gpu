@@ -375,6 +375,7 @@ basai_setting_audits         -> basai_audit_pengaturan
 case_id                  -> perkara_id
 hearing_id               -> sidang_id
 hearing_date             -> tanggal_sidang
+owner_id                 -> userid
 
 kind                     -> jenis
 mime                     -> tipe_mime
@@ -410,11 +411,15 @@ created_at               -> dibuat_pada
 updated_at               -> diperbarui_pada
 ```
 
-### Benturan owner_id
+### Identitas pengguna
 
-Permintaan `owner_id -> id` tidak dapat diterapkan pada `basai_captures` karena tabel tersebut sudah memiliki primary key `id char(32)`.
+`owner_id` ditetapkan menjadi `userid`.
 
-Untuk mencegah benturan dan kehilangan semantic identity, `owner_id` dipertahankan sementara sampai nama pengganti domain ditetapkan.
+`userid` mengacu pada userid user yang sedang login di SIPP/BAS. BAS-AI tidak membuat identitas pengguna baru dan tidak membuat foreign key lintas-database ke tabel user SIPP/BAS.
+
+```text
+owner_id -> userid
+```
 
 ### Metadata/framework
 
