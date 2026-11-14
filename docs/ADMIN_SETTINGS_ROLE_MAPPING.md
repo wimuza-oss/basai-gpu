@@ -256,3 +256,24 @@ database: basai
 No new database should be created.
 
 Before migrations, perform a read-only schema inventory and avoid collisions with existing BAS-AI tables. The application account should have only the minimum privileges required for `basai`, while SIPP/BAS source schemas remain read-only.
+
+
+## D5A existing schema inventory
+
+Current MariaDB `basai` inventory through ProxySQL:
+
+```text
+alembic_version
+basai_captures
+basai_hearing_completions
+jobs
+```
+
+There is no Laravel `migrations` table yet.
+
+Policy:
+
+- preserve all Alembic-era tables;
+- do not rename/drop legacy tables during D5;
+- inspect existing column/foreign-key contracts before introducing hearing/session tables;
+- new Laravel-owned schema should be additive and explicitly documented.
