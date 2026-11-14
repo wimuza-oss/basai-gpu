@@ -306,3 +306,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Authenticated account: `basai_app@192.168.16.95`.
 - Database version: MariaDB 10.6.19-log.
 - Runtime account remains least-privilege with DML-only access on `basai.*`.
+
+
+### D5 Laravel database via ProxySQL: PASS
+- Laravel database connection has been moved from direct MariaDB backend access to ProxySQL.
+- ProxySQL endpoint: `192.168.16.236:6033`.
+- Target schema remains `basai`.
+- Connection test is reported successful.
+- This is the preferred application path for production-style database access; direct backend `192.168.16.121:3306` remains an infrastructure/backend concern rather than the normal Laravel runtime endpoint.
