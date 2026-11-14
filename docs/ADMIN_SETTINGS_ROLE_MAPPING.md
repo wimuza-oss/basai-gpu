@@ -352,30 +352,73 @@ database: basai
 No other database/schema may be altered.
 
 
-## Bahasa Indonesia schema naming
+## Pedoman penamaan schema BAS-AI
 
-Domain tables and columns use Bahasa Indonesia.
+Pedoman resmi proyek:
 
-Framework/metadata contracts `alembic_version` and `jobs` remain unchanged.
-
-Key table mapping:
+### Tabel
 
 ```text
 basai_captures               -> basai_media_sidang
-basai_hearing_completions    -> basai_penyelesaian_sidang
-basai_settings               -> basai_pengaturan
+basai_hearing_completions    -> basai_sidang_sidang
+basai_settings               -> basai_setting
 basai_roles                  -> basai_peran
-basai_channel_profiles       -> basai_profil_kanal
-basai_channel_profile_items  -> basai_detail_profil_kanal
-basai_speaker_mappings       -> basai_pemetaan_pembicara
+basai_channel_profiles       -> basai_profil_channel
+basai_channel_profile_items  -> basai_detail_profil_channel
+basai_speaker_mappings       -> basai_pembicara
 basai_setting_audits         -> basai_audit_pengaturan
 ```
 
-SIPP-aligned identifiers:
+### Kolom
 
 ```text
-case_id    -> perkara_id
-hearing_id -> sidang_id
+case_id                  -> perkara_id
+hearing_id               -> sidang_id
+hearing_date             -> tanggal_sidang
+
+kind                     -> jenis
+mime                     -> tipe_mime
+interrupted              -> terputus
+next_index               -> indeks_berikutnya
+total_bytes              -> jumlah_byte
+
+setting_group            -> tetap
+setting_key              -> tetap
+value_type               -> tipe_nilai
+value_json               -> nilai_json
+description              -> keterangan
+
+code                     -> kode
+label/name               -> nama
+enabled                  -> aktif
+sort_order               -> urutan
+
+channel_count            -> jumlah_channel
+channel_index            -> nomor_channel
+channel_label            -> nama_channel
+role_id                  -> peran_id
+shared_role_group        -> kelompok_peran_bersama
+diarization_enabled      -> pemisahan_pembicara_aktif
+
+diarization_speaker_id   -> kode_pembicara
+confidence               -> tingkat_keyakinan
+mapping_source           -> sumber_pemetaan
+confirmed_by             -> dikonfirmasi_oleh
+confirmed_at             -> dikonfirmasi_pada
+
+created_at               -> dibuat_pada
+updated_at               -> diperbarui_pada
 ```
 
-The change is versioned in `database/sql/002_indonesianize_basai_schema.sql`.
+### Benturan owner_id
+
+Permintaan `owner_id -> id` tidak dapat diterapkan pada `basai_captures` karena tabel tersebut sudah memiliki primary key `id char(32)`.
+
+Untuk mencegah benturan dan kehilangan semantic identity, `owner_id` dipertahankan sementara sampai nama pengganti domain ditetapkan.
+
+### Metadata/framework
+
+`alembic_version` dan `jobs` tidak diubah karena merupakan kontrak tool/framework, bukan tabel domain BAS-AI.
+
+Forward SQL: `database/sql/002_indonesianize_basai_schema.sql`  
+Rollback SQL: `database/sql/002_indonesianize_basai_schema.rollback.sql`
