@@ -418,3 +418,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Apache configuration shows proxy/access rules only; no upstream authentication mechanism was found for legacy BAS.
 - BAS-AI Laravel will own its login form/session while authenticating against read-only SIPP `sys_users`.
 - BAS-AI administrator authorization will follow SIPP group/rule membership.
+
+
+### D5D SIPP administrator group identified
+- `sys_groups.groupid=1` is enabled `Super Administrator`.
+- `sys_groups.groupid=2` is named `Administrator` but disabled, so it must not be treated as an active BAS-AI admin source.
+- Final admin predicate awaits only the exact `sys_user_group` membership columns.
