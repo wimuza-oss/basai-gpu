@@ -350,3 +350,32 @@ database: basai
 ```
 
 No other database/schema may be altered.
+
+
+## Bahasa Indonesia schema naming
+
+Domain tables and columns use Bahasa Indonesia.
+
+Framework/metadata contracts `alembic_version` and `jobs` remain unchanged.
+
+Key table mapping:
+
+```text
+basai_captures               -> basai_media_sidang
+basai_hearing_completions    -> basai_penyelesaian_sidang
+basai_settings               -> basai_pengaturan
+basai_roles                  -> basai_peran
+basai_channel_profiles       -> basai_profil_kanal
+basai_channel_profile_items  -> basai_detail_profil_kanal
+basai_speaker_mappings       -> basai_pemetaan_pembicara
+basai_setting_audits         -> basai_audit_pengaturan
+```
+
+SIPP-aligned identifiers:
+
+```text
+case_id    -> perkara_id
+hearing_id -> sidang_id
+```
+
+The change is versioned in `database/sql/002_indonesianize_basai_schema.sql`.
