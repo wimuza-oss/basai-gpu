@@ -341,3 +341,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Schema changes are an operational/deployment concern, not a capability granted to Laravel Admin users.
 - User authorization granted for schema/data changes **only inside database `basai`**. Other databases/schemas must not be modified.
 - Laravel migrations remain useful for versioning and rollback documentation, but are not a prerequisite for the Admin UI itself.
+
+
+### D5B schema SQL prepared
+- Added idempotent MariaDB DDL/seed script at `database/sql/001_d5_admin_settings.sql`.
+- Scope is explicitly `USE basai`.
+- Adds six Laravel/D5 tables without modifying legacy Alembic tables.
+- Seeds role catalog, 4-channel profile, 8-channel profile, and safe non-secret settings defaults.
+- Runtime secrets are not stored in `basai_settings`.
