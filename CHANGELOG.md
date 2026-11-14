@@ -437,3 +437,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - BAS-AI login is restricted to enabled Super Administrator users and enabled users in the Panitera hierarchy rooted at `groupid=30`.
 - Panitera descendants are included through SIPP nested-set `lft/rgt`; this includes Panitera Pengganti (`groupid=500`).
 - Super Administrator remains the BAS-AI Admin role; Panitera hierarchy users are operational users by default.
+
+
+### D5D login allowlist corrected
+- Removed subtree-based Panitera authorization because it incorrectly includes Jurusita and other descendants.
+- BAS-AI login now uses an explicit role allowlist: Super Administrator, Panitera/Wakil Panitera, enabled Panmud/Panitera Muda groups, and Panitera Pengganti.
+- Jurusita is explicitly excluded.
+- Super Administrator remains BAS-AI Admin; the other allowed roles are operational users.
