@@ -1,10 +1,7 @@
 -- BAS-AI D5C - Penyeragaman nama tabel/kolom domain
 -- Scope: database basai ONLY
 -- MariaDB 10.6
--- IMPORTANT:
---   owner_id TIDAK diubah menjadi id karena basai_captures sudah memiliki
---   primary key bernama id. owner_id dipertahankan sampai nama pengganti
---   domain ditetapkan.
+-- owner_id dipetakan menjadi userid karena mengacu pada userid user login SIPP/BAS.
 --   Kolom yang tidak tercantum dalam pedoman penamaan dipertahankan.
 
 USE basai;
@@ -30,6 +27,7 @@ RENAME TABLE
     basai_setting_audits TO basai_audit_pengaturan;
 
 ALTER TABLE basai_media_sidang
+    CHANGE COLUMN owner_id userid INT NOT NULL,
     CHANGE COLUMN hearing_id sidang_id BIGINT NOT NULL,
     CHANGE COLUMN case_id perkara_id BIGINT NOT NULL,
     CHANGE COLUMN hearing_date tanggal_sidang DATE NOT NULL,
