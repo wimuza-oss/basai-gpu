@@ -372,3 +372,18 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - `owner_id` is renamed to `userid`.
 - `userid` represents the authenticated SIPP/BAS user identity for the media/capture record.
 - BAS-AI does not create a duplicate user identity and does not add a cross-database foreign key to the SIPP/BAS user table.
+
+
+### D5C Indonesian schema rename: PASS
+- Database `basai` now uses the approved BAS-AI domain table naming convention.
+- Confirmed tables:
+  - `basai_audit_pengaturan`
+  - `basai_detail_profil_channel`
+  - `basai_media_sidang`
+  - `basai_pembicara`
+  - `basai_peran`
+  - `basai_profil_channel`
+  - `basai_setting`
+  - `basai_sidang_sidang`
+- Framework/metadata tables `alembic_version` and `jobs` remain unchanged.
+- Next phase: update Laravel code references from legacy English schema names/columns to the approved schema.
