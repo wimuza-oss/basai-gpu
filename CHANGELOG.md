@@ -247,3 +247,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Diarization IDs such as `SPEAKER_00` are **not global configuration**; they are mapped to legal roles per hearing/session.
 - Session mapping and admin settings use separate authorization.
 - Details: `docs/ADMIN_SETTINGS_ROLE_MAPPING.md`.
+
+
+### D5 database target confirmed
+- Existing MariaDB database `basai` on `192.168.16.121` is the target persistence store for BAS-AI settings, hearing sessions, channel profiles, and speaker-role mappings.
+- Do not create a second BAS-AI database.
+- D5 implementation must audit existing schema first and add only non-conflicting tables/migrations.
+- Application credentials remain least-privilege; DML is limited to the `basai` schema.
