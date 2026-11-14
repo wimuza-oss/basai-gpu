@@ -298,3 +298,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Direct TCP login from Laravel host 192.168.16.95 to MariaDB 192.168.16.121 as basai_app also returns SQLSTATE/ERROR 1045.
 - Therefore the current failure is at the MariaDB account/authentication layer, not Laravel config/cache.
 - Next action: inspect authentication plugin for basai_app@192.168.16.95 and reset that account explicitly while preserving least-privilege grants.
+
+
+### D5 Laravel MariaDB runtime connection: PASS
+- Laravel host 192.168.16.95 successfully connects to MariaDB 192.168.16.121.
+- Active database: `basai`.
+- Authenticated account: `basai_app@192.168.16.95`.
+- Database version: MariaDB 10.6.19-log.
+- Runtime account remains least-privilege with DML-only access on `basai.*`.
