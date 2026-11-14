@@ -254,3 +254,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Do not create a second BAS-AI database.
 - D5 implementation must audit existing schema first and add only non-conflicting tables/migrations.
 - Application credentials remain least-privilege; DML is limited to the `basai` schema.
+
+
+### D5 Laravel database connection mismatch identified
+- Laravel test application was still configured with the default `sqlite` connection.
+- Active database path was `/var/www/html/basai_tes/database/database.sqlite`, which does not exist.
+- This is a Laravel configuration mismatch, not a failure of MariaDB `basai`.
+- Target remains the existing MariaDB database `basai` on `192.168.16.121:3306`.
+- Next action: switch Laravel connection to MariaDB using the team's existing database credentials; do not create a new database.
