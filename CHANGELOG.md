@@ -358,3 +358,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Framework/metadata tables `alembic_version` and `jobs` remain unchanged.
 - Forward SQL: `database/sql/002_indonesianize_basai_schema.sql`.
 - Rollback SQL: `database/sql/002_indonesianize_basai_schema.rollback.sql`.
+
+
+### D5C schema naming corrected to project convention
+- D5C SQL updated to follow the project naming guide exactly.
+- Uses `basai_sidang_sidang`, `basai_setting`, `basai_profil_channel`, `basai_detail_profil_channel`, and `basai_pembicara`.
+- Uses `perkara_id`, `sidang_id`, `jumlah_channel`, `nomor_channel`, and `nama_channel`.
+- `setting_group` and `setting_key` remain unchanged.
+- Requested `owner_id -> id` is intentionally not applied because `basai_captures` already has primary key `id`; `owner_id` remains unchanged pending a non-conflicting domain name.
