@@ -458,3 +458,25 @@ Principles:
 - Laravel must use session-based authentication and CSRF protection after credential verification.
 - Password verification must follow the actual legacy SIPP/BAS hashing contract; do not invent or migrate password hashes during this integration.
 - No cross-database foreign key is created from `basai` to SIPP.
+
+
+## SIPP sys_users contract
+
+Read-only inspection confirmed the SIPP authentication table:
+
+```text
+soreang.sys_users
+primary key: userid
+unique login: username
+password column: password varchar(100)
+account block flag: block
+expiry: user_expired
+concurrent-login policy: allow_concurrent_login
+```
+
+Important conclusions:
+
+- `userid` is the canonical BAS-AI user identity.
+- There is no direct administrator flag in `sys_users`.
+- BAS-AI administrator authorization must be derived from the existing SIPP group/rule model (for example `sys_user_group`, `sys_groups`, and related rule tables) or from the exact rule used by the existing BAS application.
+- Password verification must replicate the existing BAS/SIPP authentication contract exactly; the hash algorithm must be confirmed from existing application code rather than inferred.
