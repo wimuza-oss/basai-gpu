@@ -424,3 +424,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - `sys_groups.groupid=1` is enabled `Super Administrator`.
 - `sys_groups.groupid=2` is named `Administrator` but disabled, so it must not be treated as an active BAS-AI admin source.
 - Final admin predicate awaits only the exact `sys_user_group` membership columns.
+
+
+### D5D admin predicate finalized
+- Confirmed `sys_user_group(userid, groupid)` as the SIPP user-to-group membership table.
+- BAS-AI admin access is membership in enabled SIPP `Super Administrator` group `groupid=1`.
+- SIPP authorization tables remain read-only from BAS-AI.
