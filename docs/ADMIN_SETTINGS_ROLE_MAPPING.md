@@ -494,3 +494,15 @@ Therefore BAS-AI Laravel will:
 - derive BAS-AI administrator authorization from the existing SIPP group/rule model;
 - never create a second BAS-AI password/user directory;
 - never write authentication state back to the SIPP database.
+
+
+## SIPP administrator group finding
+
+Read-only inspection of `soreang.sys_groups` confirms:
+
+- `groupid = 1`: `Super Administrator`, enabled.
+- `groupid = 2`: `Administrator`, disabled.
+
+BAS-AI must not infer administrator access merely from a group name. The current candidate for active SIPP administrator equivalence is membership in enabled group `1`, subject to confirmation of the `sys_user_group` membership contract.
+
+The SIPP menu authorization model also includes `sys_menu_rule(menuid, ruleid)`; BAS-AI will not mutate these SIPP tables.
