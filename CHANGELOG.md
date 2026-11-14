@@ -387,3 +387,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
   - `basai_sidang_sidang`
 - Framework/metadata tables `alembic_version` and `jobs` remain unchanged.
 - Next phase: update Laravel code references from legacy English schema names/columns to the approved schema.
+
+
+### D5C Laravel legacy-schema reference scan: PASS
+- Read-only scan of Laravel `app`, `config`, `routes`, `resources`, and `database` found no references to the pre-D5C English BAS-AI table/column names.
+- The database rename therefore does not require a compatibility patch for existing Laravel code.
+- D5D can implement the Admin settings module directly against the approved Indonesian schema.
