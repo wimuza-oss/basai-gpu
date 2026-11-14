@@ -365,4 +365,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Uses `basai_sidang_sidang`, `basai_setting`, `basai_profil_channel`, `basai_detail_profil_channel`, and `basai_pembicara`.
 - Uses `perkara_id`, `sidang_id`, `jumlah_channel`, `nomor_channel`, and `nama_channel`.
 - `setting_group` and `setting_key` remain unchanged.
-- Requested `owner_id -> id` is intentionally not applied because `basai_captures` already has primary key `id`; `owner_id` remains unchanged pending a non-conflicting domain name.
+- `owner_id` is finalized as `userid`, referring to the authenticated SIPP/BAS user identity.
+
+
+### D5C owner identity finalized
+- `owner_id` is renamed to `userid`.
+- `userid` represents the authenticated SIPP/BAS user identity for the media/capture record.
+- BAS-AI does not create a duplicate user identity and does not add a cross-database foreign key to the SIPP/BAS user table.
