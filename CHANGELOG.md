@@ -349,3 +349,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Adds six Laravel/D5 tables without modifying legacy Alembic tables.
 - Seeds role catalog, 4-channel profile, 8-channel profile, and safe non-secret settings defaults.
 - Runtime secrets are not stored in `basai_settings`.
+
+
+### D5C Bahasa Indonesia schema naming prepared
+- Domain table and column names are standardized to Bahasa Indonesia.
+- `case_id` is renamed to `perkara_id` to align with SIPP terminology.
+- `hearing_id` is renamed to `sidang_id`.
+- Framework/metadata tables `alembic_version` and `jobs` remain unchanged.
+- Forward SQL: `database/sql/002_indonesianize_basai_schema.sql`.
+- Rollback SQL: `database/sql/002_indonesianize_basai_schema.rollback.sql`.
