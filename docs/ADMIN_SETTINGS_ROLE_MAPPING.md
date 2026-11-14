@@ -427,3 +427,34 @@ owner_id -> userid
 
 Forward SQL: `database/sql/002_indonesianize_basai_schema.sql`  
 Rollback SQL: `database/sql/002_indonesianize_basai_schema.rollback.sql`
+
+
+## Authentication source: SIPP sys_users
+
+BAS-AI does not maintain a separate user directory.
+
+Authentication for Laravel BAS-AI, including `/basai/test`, uses the existing SIPP/BAS user identity from `sys_users`.
+
+```text
+SIPP/BAS sys_users
+        |
+        v
+Laravel BAS-AI login/session
+        |
+        +-- userid
+        +-- user identity/profile
+        +-- existing SIPP/BAS administrative status
+        |
+        v
+BAS-AI authorization
+```
+
+Principles:
+
+- `userid` in `basai_media_sidang` refers to the authenticated SIPP/BAS user.
+- BAS-AI does not duplicate user/password records.
+- BAS-AI does not store SIPP passwords.
+- Existing SIPP/BAS administrator identity is the source for BAS-AI administrator access.
+- Laravel must use session-based authentication and CSRF protection after credential verification.
+- Password verification must follow the actual legacy SIPP/BAS hashing contract; do not invent or migrate password hashes during this integration.
+- No cross-database foreign key is created from `basai` to SIPP.
