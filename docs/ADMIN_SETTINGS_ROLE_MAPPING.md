@@ -536,38 +536,26 @@ BAS-AI reads this authorization from SIPP and does not mutate SIPP membership/gr
 
 SIPP password inventory confirms all current `sys_users.password` values are 32-character hexadecimal hashes compatible with the legacy MD5 contract.
 
-BAS-AI login eligibility is restricted to:
+BAS-AI login eligibility is restricted to these SIPP roles only:
 
-1. enabled SIPP `Super Administrator` group (`groupid=1`); or
-2. users belonging to the enabled Panitera hierarchy rooted at `groupid=30` (`Panitera/Wakil Panitera`), including descendants such as `Panitera Pengganti` (`groupid=500`).
+1. `Super Administrator` (`groupid=1`);
+2. `Panitera/Wakil Panitera` (`groupid=30`);
+3. enabled Panitera Muda / Panmud groups;
+4. `Panitera Pengganti` (`groupid=500`).
 
-Do not implement the Panitera rule as `groupid=30` only. SIPP uses a nested-set hierarchy (`lft`/`rgt`), so valid Panitera descendants must be included.
+Do **not** authorize by the entire nested-set subtree under `groupid=30`. That subtree also contains roles such as Jurusita and other operational groups that are explicitly not allowed to use BAS-AI.
 
-Recommended authorization predicate:
+Recommended policy is an explicit allowlist. For the current SIPP schema, Panmud eligibility should match enabled groups whose role name/description identifies them as Panmud/Panitera Muda, together with the fixed groups above.
 
-```sql
-EXISTS (
-    SELECT 1
-    FROM sys_user_group ug
-    JOIN sys_groups g ON g.groupid = ug.groupid
-    LEFT JOIN sys_groups panitera
-      ON panitera.groupid = 30
-    WHERE ug.userid = :userid
-      AND g.enable = 1
-      AND (
-          g.groupid = 1
-          OR (
-              panitera.enable = 1
-              AND g.lft BETWEEN panitera.lft AND panitera.rgt
-          )
-      )
-)
-```
-
-Authentication remains read-only against SIPP. Password hashes are not copied into `basai`.
+A user with multiple SIPP groups is allowed when at least one active membership matches the allowlist.
 
 ### BAS-AI administrative privilege
 
 Super Administrator (`groupid=1`) is BAS-AI Admin.
 
 Panitera-hierarchy users are normal BAS-AI operational users unless a later explicit BAS-AI privilege rule grants administration.
+
+
+### Explicit exclusion
+
+Jurusita is explicitly excluded from BAS-AI login eligibility, even though the SIPP group hierarchy places Jurusita below the Panitera branch.
