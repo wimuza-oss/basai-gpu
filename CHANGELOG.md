@@ -286,3 +286,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Grants are appropriate for Laravel runtime and should be preserved when renaming the host binding to `192.168.16.95`.
 - Runtime account intentionally has no DDL privileges. Laravel schema migrations must use a separate migrator/admin credential.
 - Credential hashes/passwords are not recorded in repository documentation.
+
+
+### D5 MariaDB runtime authentication mismatch
+- After moving the runtime account binding to `basai_app@192.168.16.95`, Laravel reached MariaDB `192.168.16.121:3306` but authentication failed with SQLSTATE 1045.
+- Host binding is therefore aligned; the remaining issue is the runtime password/credential value.
+- Resolution policy: reset the dedicated `basai_app@192.168.16.95` password and update only the Laravel host environment. Do not use root/admin credentials in the application.
