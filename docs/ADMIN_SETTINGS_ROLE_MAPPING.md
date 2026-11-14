@@ -277,3 +277,49 @@ Policy:
 - do not rename/drop legacy tables during D5;
 - inspect existing column/foreign-key contracts before introducing hearing/session tables;
 - new Laravel-owned schema should be additive and explicitly documented.
+
+
+## D5 schema decision after legacy-table inspection
+
+Legacy tables establish `hearing_id` and `case_id` as the existing hearing/case identity contract:
+
+- `basai_captures.hearing_id`
+- `basai_captures.case_id`
+- `basai_hearing_completions.hearing_id`
+- `basai_hearing_completions.case_id`
+
+There are no foreign keys in the current schema.
+
+### Important simplification
+
+Do **not** introduce `basai_hearing_sessions` at D5.
+
+A new session table would duplicate the established hearing identity without adding a proven requirement. Speaker mappings will instead be scoped directly by:
+
+```text
+hearing_id + case_id
+```
+
+If BAS-AI later needs multiple independent recording sessions inside one SIPP hearing, a dedicated session entity can be introduced then with an explicit migration.
+
+### D5 additive tables
+
+Current D5 target:
+
+```text
+basai_settings
+basai_roles
+basai_channel_profiles
+basai_channel_profile_items
+basai_speaker_mappings
+basai_setting_audits
+```
+
+Existing tables remain unchanged:
+
+```text
+alembic_version
+basai_captures
+basai_hearing_completions
+jobs
+```
