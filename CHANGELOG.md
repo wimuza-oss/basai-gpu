@@ -262,3 +262,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - This is a Laravel configuration mismatch, not a failure of MariaDB `basai`.
 - Target remains the existing MariaDB database `basai` on `192.168.16.121:3306`.
 - Next action: switch Laravel connection to MariaDB using the team's existing database credentials; do not create a new database.
+
+
+### D5 database credentials missing on Laravel host
+- Laravel host `192.168.16.95` is now configured for `mysql` / `192.168.16.121` / database `basai`.
+- `DB_USERNAME` and `DB_PASSWORD` are not yet provisioned in the Laravel environment.
+- No credentials are stored in GitHub.
+- Do not reuse root/admin credentials or an account bound to another host.
+- Next action: read-only audit of MariaDB accounts for host `192.168.16.95`; create a dedicated least-privilege account only if none exists.
