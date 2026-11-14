@@ -393,3 +393,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Read-only scan of Laravel `app`, `config`, `routes`, `resources`, and `database` found no references to the pre-D5C English BAS-AI table/column names.
 - The database rename therefore does not require a compatibility patch for existing Laravel code.
 - D5D can implement the Admin settings module directly against the approved Indonesian schema.
+
+
+### D5D authentication source finalized
+- BAS-AI will authenticate against SIPP/BAS `sys_users`.
+- `/basai/test` will require the same SIPP/BAS user identity instead of a separate BAS-AI account.
+- SIPP/BAS administrator identity will govern BAS-AI administrator access.
+- BAS-AI will not duplicate passwords or user records.
