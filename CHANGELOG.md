@@ -314,3 +314,15 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Target schema remains `basai`.
 - Connection test is reported successful.
 - This is the preferred application path for production-style database access; direct backend `192.168.16.121:3306` remains an infrastructure/backend concern rather than the normal Laravel runtime endpoint.
+
+
+### D5A existing schema inventory
+- Laravel via ProxySQL successfully reaches database `basai`.
+- Existing tables:
+  - `alembic_version`
+  - `basai_captures`
+  - `basai_hearing_completions`
+  - `jobs`
+- No Laravel `migrations` table exists yet.
+- Existing BAS-AI schema is therefore inherited from the prior Alembic/FastAPI phase.
+- Existing tables must be preserved; D5 will add Laravel-owned settings/role/channel/session mapping schema without destructive changes.
