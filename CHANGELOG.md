@@ -292,3 +292,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - After moving the runtime account binding to `basai_app@192.168.16.95`, Laravel reached MariaDB `192.168.16.121:3306` but authentication failed with SQLSTATE 1045.
 - Host binding is therefore aligned; the remaining issue is the runtime password/credential value.
 - Resolution policy: reset the dedicated `basai_app@192.168.16.95` password and update only the Laravel host environment. Do not use root/admin credentials in the application.
+
+
+### D5 direct MariaDB login also fails
+- Direct TCP login from Laravel host 192.168.16.95 to MariaDB 192.168.16.121 as basai_app also returns SQLSTATE/ERROR 1045.
+- Therefore the current failure is at the MariaDB account/authentication layer, not Laravel config/cache.
+- Next action: inspect authentication plugin for basai_app@192.168.16.95 and reset that account explicitly while preserving least-privilege grants.
