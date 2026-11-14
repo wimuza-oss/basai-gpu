@@ -242,3 +242,17 @@ Sidang -> Speaker Mapping
 ```
 
 Dengan pemisahan ini, Admin menentukan kebijakan sistem, sedangkan operator/sidang menentukan siapa SPEAKER_00/SPEAKER_01 pada session tersebut.
+
+
+## Existing database target
+
+D5 uses the existing MariaDB schema:
+
+```text
+server: 192.168.16.121
+database: basai
+```
+
+No new database should be created.
+
+Before migrations, perform a read-only schema inventory and avoid collisions with existing BAS-AI tables. The application account should have only the minimum privileges required for `basai`, while SIPP/BAS source schemas remain read-only.
