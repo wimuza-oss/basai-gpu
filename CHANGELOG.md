@@ -412,3 +412,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Source scan under the legacy BAS application did not find normal login/session/user authorization references.
 - The only authentication-related match was the standalone read-only `basai-catalog.php`, which is not evidence of the BAS application's primary authentication flow.
 - Authentication may therefore be enforced outside ordinary BAS application controllers (bootstrap/hooks/web server/upstream integration); this must be confirmed before reproducing it in Laravel.
+
+
+### D5D authentication deployment architecture finalized
+- Apache configuration shows proxy/access rules only; no upstream authentication mechanism was found for legacy BAS.
+- BAS-AI Laravel will own its login form/session while authenticating against read-only SIPP `sys_users`.
+- BAS-AI administrator authorization will follow SIPP group/rule membership.
