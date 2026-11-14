@@ -326,3 +326,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - No Laravel `migrations` table exists yet.
 - Existing BAS-AI schema is therefore inherited from the prior Alembic/FastAPI phase.
 - Existing tables must be preserved; D5 will add Laravel-owned settings/role/channel/session mapping schema without destructive changes.
+
+
+### D5 schema simplified after legacy inspection
+- Existing `basai_captures` and `basai_hearing_completions` already establish `hearing_id` + `case_id` as the hearing identity contract.
+- D5 will not create a redundant `basai_hearing_sessions` table.
+- Speaker mappings will be scoped directly to `hearing_id` + `case_id`.
+- No legacy tables or Alembic metadata will be modified.
