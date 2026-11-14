@@ -270,3 +270,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - No credentials are stored in GitHub.
 - Do not reuse root/admin credentials or an account bound to another host.
 - Next action: read-only audit of MariaDB accounts for host `192.168.16.95`; create a dedicated least-privilege account only if none exists.
+
+
+### D5 MariaDB account migration plan
+- Existing account `basai_app@192.168.16.86` belongs to the retired BAS-AI controller host.
+- New Laravel host is `192.168.16.95`.
+- Preferred action: audit grants, then rename the MariaDB account host from `192.168.16.86` to `192.168.16.95` so password hash and grants are preserved.
+- Do not reuse `basai@%` or root/admin accounts.
