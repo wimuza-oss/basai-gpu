@@ -406,3 +406,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Confirmed `soreang.sys_users.userid` as the canonical BAS-AI authenticated user identity.
 - `sys_users` has no direct admin flag; administrative access must follow SIPP group/rule authorization.
 - Password algorithm remains intentionally unassumed pending inspection of the existing BAS/SIPP login implementation.
+
+
+### D5D BAS authentication source scan
+- Source scan under the legacy BAS application did not find normal login/session/user authorization references.
+- The only authentication-related match was the standalone read-only `basai-catalog.php`, which is not evidence of the BAS application's primary authentication flow.
+- Authentication may therefore be enforced outside ordinary BAS application controllers (bootstrap/hooks/web server/upstream integration); this must be confirmed before reproducing it in Laravel.
