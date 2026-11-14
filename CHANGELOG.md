@@ -400,3 +400,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - `/basai/test` will require the same SIPP/BAS user identity instead of a separate BAS-AI account.
 - SIPP/BAS administrator identity will govern BAS-AI administrator access.
 - BAS-AI will not duplicate passwords or user records.
+
+
+### D5D SIPP sys_users contract confirmed
+- Confirmed `soreang.sys_users.userid` as the canonical BAS-AI authenticated user identity.
+- `sys_users` has no direct admin flag; administrative access must follow SIPP group/rule authorization.
+- Password algorithm remains intentionally unassumed pending inspection of the existing BAS/SIPP login implementation.
