@@ -526,3 +526,13 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Patch aborts unless the exact expected live blocks are present once.
 - Backup is created before writing routes/web.php and test-audio.blade.php.
 - Login controller, STT controller/service, database and GPU pipeline remain untouched.
+
+
+### D5H PASS
+- BAS-AI SIPP login verified with a real Panitera Pengganti account.
+- BAS-AI SIPP login verified with a Super Administrator account.
+- Existing authenticated session redirects /basai/login to /basai/test.
+- /basai/test is protected by RequireBasaiAuthentication.
+- Authenticated identity/logout UI is active on the BAS-AI test page.
+- Logout invalidates the BAS-AI session and unauthenticated access is redirected to login.
+- Existing WAV upload and GPU transcription pipeline remains operational after D5H.
