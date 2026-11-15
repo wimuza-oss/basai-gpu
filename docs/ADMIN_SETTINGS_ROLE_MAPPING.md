@@ -559,3 +559,27 @@ Panitera-hierarchy users are normal BAS-AI operational users unless a later expl
 ### Explicit exclusion
 
 Jurusita is explicitly excluded from BAS-AI login eligibility, even though the SIPP group hierarchy places Jurusita below the Panitera branch.
+
+
+## SIPP authentication gateway
+
+The BAS-AI runtime account is intentionally not granted direct `SELECT` access to `soreang.sys_users`, `sys_user_group`, or `sys_groups`.
+
+Authentication crosses the schema boundary through a `SQL SECURITY DEFINER` stored procedure owned by database `basai`:
+
+```text
+basai.basai_autentikasi_sipp(username, md5)
+```
+
+The procedure returns only:
+
+- `userid`
+- `fullname`
+- `username`
+- `admin_basai`
+
+It does not expose the stored SIPP password hash to Laravel.
+
+Eligible roles remain: Super Administrator, Panitera/Wakil Panitera, enabled Panmud/Panitera Muda, and Panitera Pengganti. Jurusita remains excluded.
+
+Laravel runtime receives only `EXECUTE` on the procedure through the ProxySQL backend identity `basai_app@192.168.16.236`.
