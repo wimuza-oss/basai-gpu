@@ -28,8 +28,9 @@ BEGIN
         ON ug.userid = u.userid
     INNER JOIN soreang.sys_groups AS g
         ON g.groupid = ug.groupid
-    WHERE u.username = p_username
-      AND LOWER(u.password) = LOWER(p_password_md5)
+    WHERE LOWER(CONVERT(u.username USING utf8mb4)) COLLATE utf8mb4_unicode_ci
+          = LOWER(p_username) COLLATE utf8mb4_unicode_ci
+      AND BINARY LOWER(u.password) = BINARY LOWER(p_password_md5)
       AND u.block = 0
       AND (u.user_expired IS NULL OR u.user_expired > NOW())
       AND g.enable = 1
