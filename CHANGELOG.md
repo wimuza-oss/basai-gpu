@@ -503,3 +503,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Authenticated user successfully uploaded a WAV file from the Laravel BAS-AI test page.
 - GPU STT processing completed successfully and transcription was returned to Laravel.
 - This validates the end-to-end path: SIPP identity -> Laravel session -> WAV upload -> GPU STT -> transcript.
+
+
+### D5H route protection and authenticated identity
+- Added RequireBasaiAuthentication middleware for the BAS-AI session namespace.
+- Invalid/missing session is cleared and redirected to basai.login with intended URL retained.
+- Middleware exposes only normalized userid, username, fullname, and admin_basai to the request/view.
+- Added authenticated user bar Blade partial with CSRF-protected POST logout.
+- Existing STT controller and GPU pipeline are intentionally unchanged.
+- Route/view integration is documented separately because the live team-owned routes/web.php and BAS-AI test Blade are not yet mirrored in this repository.
