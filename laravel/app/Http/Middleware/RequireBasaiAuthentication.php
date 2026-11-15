@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
 
 final class RequireBasaiAuthentication
 {
-    public function handle(Request $request, Closure $next): Response|RedirectResponse
+    public function handle(Request $request, Closure $next): Response
     {
         $auth = $request->session()->get('basai.auth');
 
