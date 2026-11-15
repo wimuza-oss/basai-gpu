@@ -512,3 +512,9 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Added authenticated user bar Blade partial with CSRF-protected POST logout.
 - Existing STT controller and GPU pipeline are intentionally unchanged.
 - Route/view integration is documented separately because the live team-owned routes/web.php and BAS-AI test Blade are not yet mirrored in this repository.
+
+
+### D5H installer
+- Added fail-safe installer for the live Laravel tree.
+- Installer requires exactly one basai.test.show and basai.test.transcribe named route, discovers the test Blade from BasaiTestController, and aborts on unexpected structure.
+- routes/web.php and the discovered Blade are backed up before modification.
