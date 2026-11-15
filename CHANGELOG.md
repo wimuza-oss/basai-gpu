@@ -459,3 +459,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Service calls `basai.basai_autentikasi_sipp` only; it never queries `soreang.sys_*` directly.
 - Legacy SIPP password verification uses MD5 only for compatibility with the existing SIPP contract.
 - MariaDB procedure result sets are explicitly drained/closed to keep the PDO connection reusable.
+
+
+### D5E ProxySQL runtime path: PASS
+- Laravel runtime connection successfully uses ProxySQL `192.168.16.236:6033`.
+- ProxySQL has separate frontend and backend entries for `basai_app`.
+- MariaDB backend sees the authenticated account as `basai_app@192.168.16.236`.
+- Active database is `basai`.
+- The previous frontend credential mismatch has been resolved.
