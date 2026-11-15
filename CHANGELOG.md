@@ -518,3 +518,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Added fail-safe installer for the live Laravel tree.
 - Installer requires exactly one basai.test.show and basai.test.transcribe named route, discovers the test Blade from BasaiTestController, and aborts on unexpected structure.
 - routes/web.php and the discovered Blade are backed up before modification.
+
+
+### D5H.1 verified-live patch
+- Replaced the generic D5H route/view patch strategy with a strict patch tailored to the verified live Laravel source.
+- Exact live targets: routes named basai.test.show and basai.test.transcribe, and resources/views/basai/test-audio.blade.php.
+- Patch aborts unless the exact expected live blocks are present once.
+- Backup is created before writing routes/web.php and test-audio.blade.php.
+- Login controller, STT controller/service, database and GPU pipeline remain untouched.
