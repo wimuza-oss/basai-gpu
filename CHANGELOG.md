@@ -467,3 +467,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - MariaDB backend sees the authenticated account as `basai_app@192.168.16.236`.
 - Active database is `basai`.
 - The previous frontend credential mismatch has been resolved.
+
+
+### D5F SIPP login/session UI prepared
+- SIPP authentication gateway probe returned `null` for invalid credentials: end-to-end gateway PASS.
+- Added validated BAS-AI login request.
+- Added SIPP login/logout controller with session regeneration/invalidation.
+- Session stores only userid, username, fullname, and admin_basai.
+- Added CSRF-protected BAS-AI login Blade view.
+- Password/hash is never stored in the Laravel session.
