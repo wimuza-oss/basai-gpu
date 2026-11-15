@@ -480,3 +480,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 
 ### D5F route-name decoupling
 - SIPP login controller redirects directly to `/basai/test` and no longer assumes the existing test route is named `basai.test`.
+
+
+### D5G SIPP password algorithm correction
+- Root cause identified from legacy SIPP source: authentication does not compare sys_users.password with md5(password) directly.
+- SIPP computes arr2md5([code_activation, password]): md5(code_activation) XOR md5(password), then md5() of the XOR result.
+- Added basai_hash_password_sipp() in database basai and updated basai_autentikasi_sipp() to reproduce the legacy algorithm.
+- Laravel continues to send only md5(password) to the gateway; plaintext password is not sent to MariaDB.
+- Expanded explicit known Panitera/Panmud group IDs from the legacy source while retaining dynamic Panmud matching.
