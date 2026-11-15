@@ -452,3 +452,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Laravel receives only userid, fullname, username, and admin_basai; stored SIPP password hashes are not exposed.
 - Runtime permission is limited to EXECUTE on the BAS-AI procedure through `basai_app@192.168.16.236`.
 - No SIPP table or SIPP data is modified.
+
+
+### D5E Laravel SIPP authentication service prepared
+- Added `SippUserData`, `SippAuthenticationException`, and `SippAuthenticationService` reference implementation.
+- Service calls `basai.basai_autentikasi_sipp` only; it never queries `soreang.sys_*` directly.
+- Legacy SIPP password verification uses MD5 only for compatibility with the existing SIPP contract.
+- MariaDB procedure result sets are explicitly drained/closed to keep the PDO connection reusable.
