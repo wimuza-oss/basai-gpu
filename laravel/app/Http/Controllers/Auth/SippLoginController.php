@@ -22,7 +22,7 @@ final class SippLoginController extends Controller
     public function create(Request $request): View|RedirectResponse
     {
         if ($request->session()->has('basai.auth.userid')) {
-            return redirect()->route('basai.test');
+            return redirect('/basai/test');
         }
 
         return view('auth.basai-login');
@@ -60,7 +60,7 @@ final class SippLoginController extends Controller
             'admin_basai' => $user->adminBasai,
         ]);
 
-        return redirect()->intended(route('basai.test'));
+        return redirect()->intended('/basai/test');
     }
 
     public function destroy(Request $request): RedirectResponse
