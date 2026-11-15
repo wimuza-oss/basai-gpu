@@ -67,12 +67,13 @@ BEGIN
         ON ug.userid = u.userid
     INNER JOIN soreang.sys_groups AS g
         ON g.groupid = ug.groupid
-    WHERE u.username = p_username
+    WHERE LOWER(CONVERT(u.username USING utf8mb4)) COLLATE utf8mb4_unicode_ci
+          = LOWER(p_username) COLLATE utf8mb4_unicode_ci
       AND u.code_activation IS NOT NULL
       AND u.code_activation <> ''
-      AND LOWER(u.password) = LOWER(
+      AND BINARY LOWER(u.password) = BINARY LOWER(
           basai.basai_hash_password_sipp(
-              u.code_activation,
+              CONVERT(u.code_activation USING utf8mb4),
               p_password_md5
           )
       )
