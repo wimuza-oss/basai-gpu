@@ -488,3 +488,10 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Added basai_hash_password_sipp() in database basai and updated basai_autentikasi_sipp() to reproduce the legacy algorithm.
 - Laravel continues to send only md5(password) to the gateway; plaintext password is not sent to MariaDB.
 - Expanded explicit known Panitera/Panmud group IDs from the legacy source while retaining dynamic Panmud matching.
+
+
+### D5G.1 legacy collation compatibility
+- Fixed MariaDB error 1267 caused by comparing legacy SIPP latin1_swedish_ci columns with BAS-AI utf8mb4_unicode_ci procedure parameters.
+- Username comparison now explicitly converts the SIPP value to utf8mb4 and preserves case-insensitive matching.
+- Password hashes are compared as binary ASCII values, avoiding collation-dependent comparison.
+- code_activation is explicitly converted to utf8mb4 before the SIPP hash function is evaluated.
