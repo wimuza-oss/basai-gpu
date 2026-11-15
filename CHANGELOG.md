@@ -495,3 +495,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Username comparison now explicitly converts the SIPP value to utf8mb4 and preserves case-insensitive matching.
 - Password hashes are compared as binary ASCII values, avoiding collation-dependent comparison.
 - code_activation is explicitly converted to utf8mb4 before the SIPP hash function is evaluated.
+
+
+### D5G.2 end-to-end login and STT PASS
+- Real SIPP Panitera Pengganti account successfully authenticated through Laravel -> ProxySQL -> basai_autentikasi_sipp().
+- BAS-AI login session was established successfully.
+- Authenticated user successfully uploaded a WAV file from the Laravel BAS-AI test page.
+- GPU STT processing completed successfully and transcription was returned to Laravel.
+- This validates the end-to-end path: SIPP identity -> Laravel session -> WAV upload -> GPU STT -> transcript.
