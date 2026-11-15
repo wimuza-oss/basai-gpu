@@ -476,3 +476,7 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Session stores only userid, username, fullname, and admin_basai.
 - Added CSRF-protected BAS-AI login Blade view.
 - Password/hash is never stored in the Laravel session.
+
+
+### D5F route-name decoupling
+- SIPP login controller redirects directly to `/basai/test` and no longer assumes the existing test route is named `basai.test`.
