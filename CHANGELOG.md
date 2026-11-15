@@ -444,3 +444,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - BAS-AI login now uses an explicit role allowlist: Super Administrator, Panitera/Wakil Panitera, enabled Panmud/Panitera Muda groups, and Panitera Pengganti.
 - Jurusita is explicitly excluded.
 - Super Administrator remains BAS-AI Admin; the other allowed roles are operational users.
+
+
+### D5E least-privilege SIPP authentication gateway prepared
+- Direct runtime SELECT from `basai_app` to `soreang.sys_users`, `sys_user_group`, and `sys_groups` is denied, preserving isolation.
+- Added `basai.basai_autentikasi_sipp` as a `SQL SECURITY DEFINER` authentication gateway.
+- Laravel receives only userid, fullname, username, and admin_basai; stored SIPP password hashes are not exposed.
+- Runtime permission is limited to EXECUTE on the BAS-AI procedure through `basai_app@192.168.16.236`.
+- No SIPP table or SIPP data is modified.
