@@ -544,3 +544,12 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Keeps the existing recorder, upload form, CSRF, controller and GPU STT JavaScript untouched.
 - Adds only visual shell, typography, form/panel/button styling and authenticated user-bar alignment.
 - The main Livewire BAS-AI page (/?tahap=1) is not modified.
+
+
+### D6B isolated 1:1 UI clone
+- Added a fail-safe live cloning script that copies the current team-owned BasAiAssistant Livewire class and Blade into isolated test equivalents.
+- Main source files are read-only inputs and are not modified.
+- /basai/test GET is redirected to the cloned Livewire component, preserving the existing BAS-AI shared layout and stage-1 visual structure.
+- The cloned component defaults to tahap=1 so /basai/test opens directly on Rekaman Sidang.
+- Existing POST /basai/test controller route is left untouched for rollback/fallback.
+- Script creates backups and automatically restores routes/removes cloned files if PHP lint fails.
