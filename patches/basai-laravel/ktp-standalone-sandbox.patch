@@ -1,0 +1,993 @@
+diff --git a/app/Http/Controllers/Basai/BasaiTestKtpController.php b/app/Http/Controllers/Basai/BasaiTestKtpController.php
+new file mode 100644
+index 0000000..c8bed46
+--- /dev/null
++++ b/app/Http/Controllers/Basai/BasaiTestKtpController.php
+@@ -0,0 +1,29 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Http\Controllers\Basai;
++
++use App\Services\Basai\Test\KtpCaptureService;
++use App\Services\Basai\Test\TesseractKtpOcrService;
++use Illuminate\Http\JsonResponse;
++use Illuminate\Http\Request;
++
++final class BasaiTestKtpController
++{
++    public function __invoke(Request $request, KtpCaptureService $captures, TesseractKtpOcrService $ocr): JsonResponse
++    {
++        abort_unless(app()->environment('local'), 404);
++
++        $auth = $request->attributes->get('basai.auth');
++        $userId = filter_var($auth['userid'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
++        abort_if($userId === false, 403);
++
++        $validated = $request->validate(['ktpImage' => ['required', 'string']]);
++
++        // Halaman uji mandiri tidak memilih perkara atau jadwal sidang.
++        $result = $captures->saveAndRead($validated['ktpImage'], $userId, null, null, $ocr);
++
++        return response()->json($result)->header('Cache-Control', 'no-store');
++    }
++}
+diff --git a/app/Services/Basai/Test/GpuKtpOcrService.php b/app/Services/Basai/Test/GpuKtpOcrService.php
+new file mode 100644
+index 0000000..9c5acc1
+--- /dev/null
++++ b/app/Services/Basai/Test/GpuKtpOcrService.php
+@@ -0,0 +1,13 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++final class GpuKtpOcrService implements KtpOcrService
++{
++    public function read(string $image, string $mime): array
++    {
++        return ['status' => 'OCR_UNAVAILABLE', 'fields' => [], 'raw_text' => ''];
++    }
++}
+diff --git a/app/Services/Basai/Test/KtpCaptureService.php b/app/Services/Basai/Test/KtpCaptureService.php
+new file mode 100644
+index 0000000..3a4a0f3
+--- /dev/null
++++ b/app/Services/Basai/Test/KtpCaptureService.php
+@@ -0,0 +1,78 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++use Illuminate\Support\Facades\Storage;
++use Illuminate\Support\Str;
++use Illuminate\Validation\ValidationException;
++
++final class KtpCaptureService
++{
++    public const MAX_BYTES = 5 * 1024 * 1024;
++
++    public function __construct(private KtpImageQuality $quality) {}
++
++    /** @return array{status: string, fields: array<string, string>, raw_text: string, warnings: list<string>} */
++    public function saveAndRead(string $encodedImage, int $userId, ?int $caseId, ?int $hearingId, KtpOcrService $ocr): array
++    {
++        $maxEncodedBytes = 4 * intdiv(self::MAX_BYTES + 2, 3);
++        $image = strlen($encodedImage) <= $maxEncodedBytes ? base64_decode($encodedImage, true) : false;
++
++        if (! is_string($image) || $image === '' || strlen($image) > self::MAX_BYTES) {
++            throw ValidationException::withMessages(['ktpImage' => 'Pilih gambar KTP berukuran maksimal 5 MB.']);
++        }
++
++        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($image);
++        $info = @getimagesizefromstring($image);
++        $extension = match ($mime) {
++            'image/jpeg' => 'jpg',
++            'image/png' => 'png',
++            default => null,
++        };
++
++        if ($extension === null || ! $info || $info['mime'] !== $mime
++            || $info[0] * $info[1] > 16_000_000
++            || ($decoded = @imagecreatefromstring($image)) === false) {
++            throw ValidationException::withMessages(['ktpImage' => 'Gunakan gambar JPEG atau PNG yang valid, maksimal 16 megapiksel.']);
++        }
++
++        $warnings = $this->quality->warnings($decoded);
++        unset($decoded);
++
++        $result = $ocr->read($image, $mime);
++        $result['warnings'] = $warnings;
++        if ($result['status'] !== 'OCR_REVIEW' || $result['fields'] === []) {
++            return $result;
++        }
++
++        $disk = Storage::disk('local');
++        $directory = 'ktp-captures/'.Str::uuid();
++        $original = "original.{$extension}";
++        $metadata = json_encode([
++            'userid' => $userId,
++            'perkara_id' => $caseId,
++            'sidang_id' => $hearingId,
++            'original' => $original,
++            'mime' => $mime,
++            'bytes' => strlen($image),
++            'captured_at' => now()->toIso8601String(),
++        ], JSON_THROW_ON_ERROR);
++
++        try {
++            $saved = $disk->put("{$directory}/{$original}", $image, 'private')
++                && $disk->put("{$directory}/capture.json", $metadata, 'private');
++        } catch (\Throwable) {
++            $saved = false;
++        }
++
++        if (! $saved) {
++            $disk->deleteDirectory($directory);
++
++            return array_replace($result, ['status' => 'STORAGE_ERROR']);
++        }
++
++        return $result;
++    }
++}
+diff --git a/app/Services/Basai/Test/KtpImageQuality.php b/app/Services/Basai/Test/KtpImageQuality.php
+new file mode 100644
+index 0000000..ddd78c4
+--- /dev/null
++++ b/app/Services/Basai/Test/KtpImageQuality.php
+@@ -0,0 +1,76 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++use GdImage;
++
++final class KtpImageQuality
++{
++    /** @return list<string> */
++    public function warnings(GdImage $image): array
++    {
++        $width = imagesx($image);
++        $height = imagesy($image);
++        $warnings = [];
++
++        if (max($width, $height) < 1000 || min($width, $height) < 600) {
++            $warnings[] = 'Resolusi foto rendah. Disarankan ambil ulang dari jarak lebih dekat.';
++        }
++
++        $scale = min(1, 320 / max($width, $height));
++        $sampleWidth = max(1, (int) round($width * $scale));
++        $sampleHeight = max(1, (int) round($height * $scale));
++        $sample = imagecreatetruecolor($sampleWidth, $sampleHeight);
++        if ($sample === false) {
++            return $warnings;
++        }
++
++        imagefill($sample, 0, 0, 0xffffff);
++        imagecopyresampled($sample, $image, 0, 0, 0, 0, $sampleWidth, $sampleHeight, $width, $height);
++
++        $luminance = [];
++        $sum = $sumSquares = 0.0;
++        for ($y = 0; $y < $sampleHeight; $y++) {
++            for ($x = 0; $x < $sampleWidth; $x++) {
++                $rgb = imagecolorat($sample, $x, $y);
++                $level = 0.2126 * (($rgb >> 16) & 255) + 0.7152 * (($rgb >> 8) & 255) + 0.0722 * ($rgb & 255);
++                $luminance[] = $level;
++                $sum += $level;
++                $sumSquares += $level * $level;
++            }
++        }
++        unset($sample);
++
++        $count = count($luminance);
++        $brightness = $sum / $count;
++        $contrastVariance = $sumSquares / $count - $brightness ** 2;
++        if ($brightness < 55 || $brightness > 235) {
++            $warnings[] = 'Foto terlalu gelap atau terlalu terang. Sesuaikan pencahayaan.';
++        }
++        if ($contrastVariance < 24 ** 2) {
++            $warnings[] = 'Kontras foto rendah. Hindari pantulan cahaya dan bayangan.';
++        }
++
++        // Varians Laplacian pada sampel berukuran tetap memberikan estimasi ketajaman.
++        $edgeSum = $edgeSquares = 0.0;
++        $edgeCount = 0;
++        for ($y = 1; $y < $sampleHeight - 1; $y++) {
++            for ($x = 1; $x < $sampleWidth - 1; $x++) {
++                $i = $y * $sampleWidth + $x;
++                $edge = 4 * $luminance[$i] - $luminance[$i - 1] - $luminance[$i + 1]
++                    - $luminance[$i - $sampleWidth] - $luminance[$i + $sampleWidth];
++                $edgeSum += $edge;
++                $edgeSquares += $edge * $edge;
++                $edgeCount++;
++            }
++        }
++
++        if ($edgeCount > 0 && $edgeSquares / $edgeCount - ($edgeSum / $edgeCount) ** 2 < 75) {
++            $warnings[] = 'Foto kurang tajam, OCR mungkin tidak akurat. Disarankan ambil ulang.';
++        }
++
++        return $warnings;
++    }
++}
+diff --git a/app/Services/Basai/Test/KtpOcrService.php b/app/Services/Basai/Test/KtpOcrService.php
+new file mode 100644
+index 0000000..fab8d3a
+--- /dev/null
++++ b/app/Services/Basai/Test/KtpOcrService.php
+@@ -0,0 +1,11 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++interface KtpOcrService
++{
++    /** @return array{status: string, fields: array<string, string>, raw_text: string} */
++    public function read(string $image, string $mime): array;
++}
+diff --git a/app/Services/Basai/Test/KtpOcrTextParser.php b/app/Services/Basai/Test/KtpOcrTextParser.php
+new file mode 100644
+index 0000000..dbe3e4a
+--- /dev/null
++++ b/app/Services/Basai/Test/KtpOcrTextParser.php
+@@ -0,0 +1,191 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++final class KtpOcrTextParser
++{
++    /** @return array<string, string> */
++    public function parse(string $text): array
++    {
++        $text = $this->normalizeText($text);
++        $lines = array_values(array_filter(array_map('trim', preg_split('/\R/u', $text) ?: [])));
++        $fields = [];
++
++        foreach ($lines as $line) {
++            $this->parseLine($line, $fields);
++        }
++
++        $this->applyFallbacks($text, $fields);
++        $this->normalizeKnownValues($fields);
++
++        return array_filter($fields, static fn (string $value): bool => $value !== '');
++    }
++
++    private function normalizeText(string $text): string
++    {
++        $text = str_replace(["\u{00A0}", '：'], [' ', ':'], mb_scrub($text, 'UTF-8'));
++        $text = preg_replace('/[\t ]+/u', ' ', $text) ?? $text;
++        $text = preg_replace('/ *: */u', ': ', $text) ?? $text;
++
++        return trim($text);
++    }
++
++    /** @param array<string, string> $fields */
++    private function parseLine(string $line, array &$fields): void
++    {
++        $rules = [
++            'nik' => '(?:N[I1L][KX])',
++            'nama' => 'NAMA',
++            'tempat_tanggal_lahir' => '(?:TEMPAT\s*(?:[/|I\\-]\s*)?(?:T(?:GL|GI|6L)\.?|TANGGAL)\s*LAHIR)',
++            'jenis_kelamin' => 'JENIS\s+KELAMIN',
++            'alamat' => 'ALAMAT',
++            'rt_rw' => 'RT\s*[/|I\\-]\s*RW',
++            'kelurahan_desa' => '(?:KEL(?:URAHAN)?\.?\s*[/|I\\-]\s*DESA|KEL\s*/\s*DESA)',
++            'kecamatan' => 'KECAMATAN',
++            'agama' => 'AGAMA',
++            'status_perkawinan' => 'STATUS\s+PERKAWINAN',
++            'pekerjaan' => 'PEKERJAAN',
++            'kewarganegaraan' => 'KEWARGANEGARAAN',
++            'berlaku_hingga' => 'BERLAKU\s+HINGGA',
++        ];
++
++        foreach ($rules as $key => $label) {
++            if (! preg_match('~^\s*'.$label.'\s*(?::|\s)\s*(.+)$~iu', $line, $match)) {
++                continue;
++            }
++
++            $value = trim($match[1], " \t\n\r\0\x0B:;|-");
++            if ($value === '') {
++                return;
++            }
++
++            if ($key === 'nik') {
++                $digits = preg_replace('/\D+/', '', $value) ?? '';
++                if (preg_match('/^[0-9]{16}$/D', $digits)) {
++                    $fields['nik'] = $digits;
++                }
++                return;
++            }
++
++            if ($key === 'tempat_tanggal_lahir') {
++                $this->parseBirthValue($value, $fields);
++                return;
++            }
++
++            if ($key === 'jenis_kelamin') {
++                $value = preg_split('/\s+GOL\.?\s*DARAH\b/iu', $value, 2)[0] ?? $value;
++            } elseif ($key === 'alamat') {
++                $value = preg_replace('/^\d+\s+(?=(?:JL\.?|JALAN)\b)/iu', '', $value) ?? $value;
++                $value = preg_replace('/\s+-\s+[A-Z][0-9]{0,2}\s*$/iu', '', $value) ?? $value;
++            } elseif ($key === 'pekerjaan') {
++                $value = preg_replace('/\s+[0-9]{1,2}\s*$/u', '', $value) ?? $value;
++            }
++
++            $fields[$key] = trim($value);
++            return;
++        }
++    }
++
++    /** @param array<string, string> $fields */
++    private function parseBirthValue(string $value, array &$fields): void
++    {
++        if (! preg_match('~^(.*?)\s*[,;]?\s*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\b~u', $value, $birth)) {
++            return;
++        }
++
++        $place = trim($birth[1], " ,;:-\t");
++        if ($place !== '') {
++            $fields['tempat_lahir'] = $place;
++        }
++        $fields['tanggal_lahir'] = $this->normalizeDate($birth[2]);
++    }
++
++    /** @param array<string, string> $fields */
++    private function applyFallbacks(string $text, array &$fields): void
++    {
++        if (! isset($fields['nik']) && preg_match('/\b[0-9]{16}\b/u', $text, $match)) {
++            $fields['nik'] = $match[0];
++        }
++
++        if ((! isset($fields['tempat_lahir']) || ! isset($fields['tanggal_lahir']))
++            && preg_match('~(?:LAHIR|L4HIR)[^\r\n]*?([A-Z][A-Z .\'-]{2,}?)\s*[,;:]?\s*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\b~iu', $text, $match)) {
++            $place = trim($match[1], " ,;:-\t");
++            if ($place !== '') {
++                $fields['tempat_lahir'] ??= $place;
++            }
++            $fields['tanggal_lahir'] ??= $this->normalizeDate($match[2]);
++        }
++
++        if (! isset($fields['tanggal_lahir'])
++            && preg_match('~\b([0-9]{1,2}[-/.][0-9]{1,2}[-/.](?:19|20)[0-9]{2})\b~u', $text, $match)) {
++            $fields['tanggal_lahir'] = $this->normalizeDate($match[1]);
++        }
++    }
++
++    /** @param array<string, string> $fields */
++    private function normalizeKnownValues(array &$fields): void
++    {
++        if (isset($fields['jenis_kelamin'])) {
++            $upper = mb_strtoupper($fields['jenis_kelamin']);
++            if (str_contains($upper, 'PEREMPUAN')) {
++                $fields['jenis_kelamin'] = 'PEREMPUAN';
++            } elseif (preg_match('/LAKI\s*[- ]?\s*LAKI/u', $upper)) {
++                $fields['jenis_kelamin'] = 'LAKI-LAKI';
++            }
++        }
++
++        if (isset($fields['rt_rw']) && preg_match('~\b([0-9]{1,3})\s*[/|I\\-]\s*([0-9]{1,3})\b~u', $fields['rt_rw'], $match)) {
++            $fields['rt_rw'] = $match[1].'/'.$match[2];
++        }
++
++        if (isset($fields['agama'])) {
++            $fields['agama'] = $this->pickKnownValue($fields['agama'], [
++                'ISLAM', 'KRISTEN', 'KATOLIK', 'HINDU', 'BUDDHA', 'KONGHUCU',
++            ]);
++        }
++
++        if (isset($fields['status_perkawinan'])) {
++            $fields['status_perkawinan'] = $this->pickKnownValue($fields['status_perkawinan'], [
++                'BELUM KAWIN', 'CERAI HIDUP', 'CERAI MATI', 'KAWIN',
++            ]);
++        }
++
++        if (isset($fields['kewarganegaraan'])) {
++            $upper = mb_strtoupper($fields['kewarganegaraan']);
++            if (preg_match('/\bWNI\b/u', $upper)) {
++                $fields['kewarganegaraan'] = 'WNI';
++            } elseif (preg_match('/\bWNA\b/u', $upper)) {
++                $fields['kewarganegaraan'] = 'WNA';
++            }
++        }
++
++        if (isset($fields['berlaku_hingga'])) {
++            $upper = mb_strtoupper($fields['berlaku_hingga']);
++            if (str_contains($upper, 'SEUMUR HIDUP')) {
++                $fields['berlaku_hingga'] = 'SEUMUR HIDUP';
++            } elseif (preg_match('~\b([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\b~u', $fields['berlaku_hingga'], $match)) {
++                $fields['berlaku_hingga'] = $this->normalizeDate($match[1]);
++            }
++        }
++    }
++
++    /** @param list<string> $known */
++    private function pickKnownValue(string $value, array $known): string
++    {
++        $upper = mb_strtoupper($value);
++        foreach ($known as $candidate) {
++            if (str_contains($upper, $candidate)) {
++                return $candidate;
++            }
++        }
++
++        return trim($value);
++    }
++
++    private function normalizeDate(string $date): string
++    {
++        return str_replace(['/', '.'], '-', $date);
++    }
++}
+diff --git a/app/Services/Basai/Test/TesseractKtpOcrService.php b/app/Services/Basai/Test/TesseractKtpOcrService.php
+new file mode 100644
+index 0000000..0de487e
+--- /dev/null
++++ b/app/Services/Basai/Test/TesseractKtpOcrService.php
+@@ -0,0 +1,197 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++use Symfony\Component\Process\ExecutableFinder;
++use Symfony\Component\Process\Process;
++
++final class TesseractKtpOcrService implements KtpOcrService
++{
++    public function __construct(private KtpOcrTextParser $parser) {}
++
++    public function read(string $image, string $mime): array
++    {
++        $command = (new ExecutableFinder)->find('tesseract');
++        if ($command === null || ! function_exists('proc_open')) {
++            return (new UnavailableKtpOcrService)->read($image, $mime);
++        }
++
++        $variants = $this->buildImageVariants($image);
++        $candidates = [];
++        $recognized = false;
++
++        foreach ($variants as $variantName => $variantImage) {
++            foreach (['6', '11'] as $psm) {
++                $text = $this->recognize($command, $variantImage, $psm);
++                $recognized = $recognized || $text !== null;
++                if ($text === null || $text === '') {
++                    continue;
++                }
++
++                $fields = $this->parser->parse($text);
++                $candidates[] = [
++                    'variant' => $variantName,
++                    'psm' => $psm,
++                    'text' => $text,
++                    'fields' => $fields,
++                    'score' => $this->scoreFields($fields),
++                ];
++            }
++        }
++
++        if ($candidates === []) {
++            return ['status' => $recognized ? 'OCR_NO_FIELDS' : 'OCR_FAILED', 'fields' => [], 'raw_text' => ''];
++        }
++
++        usort($candidates, static fn (array $a, array $b): int =>
++            ($b['score'] <=> $a['score']) ?: (mb_strlen($b['text']) <=> mb_strlen($a['text']))
++        );
++        $best = $candidates[0];
++        $fields = $this->mergeFields($candidates);
++
++        return [
++            'status' => $fields === [] ? 'OCR_REVIEW_REQUIRED' : 'OCR_REVIEW',
++            'fields' => $fields,
++            'raw_text' => $best['text'],
++        ];
++    }
++
++    /** @return array<string, string> */
++    private function buildImageVariants(string $image): array
++    {
++        $variants = ['original' => $image];
++        if (! function_exists('imagecreatefromstring')) {
++            return $variants;
++        }
++
++        $source = @imagecreatefromstring($image);
++        if ($source === false) {
++            return $variants;
++        }
++
++        try {
++            $width = imagesx($source);
++            $height = imagesy($source);
++            if ($width < 1 || $height < 1) {
++                return $variants;
++            }
++
++            $scale = min(max(1, 1800 / $width), 2400 / max($width, $height));
++            $targetWidth = max(1, (int) round($width * $scale));
++            $targetHeight = max(1, (int) round($height * $scale));
++
++            $prepared = imagecreatetruecolor($targetWidth, $targetHeight);
++            if ($prepared === false) {
++                return $variants;
++            }
++
++            imagecopyresampled($prepared, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
++            imagefilter($prepared, IMG_FILTER_GRAYSCALE);
++            imagefilter($prepared, IMG_FILTER_CONTRAST, -28);
++            @imageconvolution($prepared, [[0, -1, 0], [-1, 5, -1], [0, -1, 0]], 1, 0);
++
++            $full = $this->encodePng($prepared);
++            if ($full !== null) {
++                $variants['prepared_full'] = $full;
++            }
++
++            $cropWidth = max(1, (int) round($targetWidth * 0.78));
++            $left = imagecrop($prepared, ['x' => 0, 'y' => 0, 'width' => $cropWidth, 'height' => $targetHeight]);
++            if ($left !== false) {
++                $cropped = $this->encodePng($left);
++                if ($cropped !== null) {
++                    $variants['prepared_left'] = $cropped;
++                }
++                imagedestroy($left);
++            }
++
++            imagedestroy($prepared);
++        } finally {
++            imagedestroy($source);
++        }
++
++        return $variants;
++    }
++
++    private function encodePng(\GdImage $image): ?string
++    {
++        ob_start();
++        $ok = imagepng($image, null, 6);
++        $bytes = ob_get_clean();
++
++        return $ok && is_string($bytes) && $bytes !== '' ? $bytes : null;
++    }
++
++    private function recognize(string $command, string $image, string $mode): ?string
++    {
++        try {
++            $process = new Process([
++                $command,
++                'stdin',
++                'stdout',
++                '-l',
++                'ind',
++                '--oem',
++                '1',
++                '--psm',
++                $mode,
++                '-c',
++                'preserve_interword_spaces=1',
++            ], input: $image, timeout: 15);
++
++            return $process->run() === 0 ? trim(mb_scrub($process->getOutput(), 'UTF-8')) : null;
++        } catch (\RuntimeException) {
++            return null;
++        }
++    }
++
++    /** @param array<string, string> $fields */
++    private function scoreFields(array $fields): int
++    {
++        $score = count($fields) * 2;
++        $score += isset($fields['nik']) && preg_match('/^[0-9]{16}$/D', $fields['nik']) ? 12 : 0;
++        $score += isset($fields['nama']) ? 4 : 0;
++        $score += isset($fields['tempat_lahir']) ? 4 : 0;
++        $score += isset($fields['tanggal_lahir']) ? 6 : 0;
++        $score += isset($fields['alamat']) ? 3 : 0;
++        $score += isset($fields['rt_rw']) ? 2 : 0;
++
++        return $score;
++    }
++
++    /**
++     * @param list<array{fields: array<string, string>, score: int, text: string, variant: string, psm: string}> $candidates
++     * @return array<string, string>
++     */
++    private function mergeFields(array $candidates): array
++    {
++        $merged = [];
++        $fieldScores = [];
++
++        foreach ($candidates as $candidate) {
++            foreach ($candidate['fields'] as $key => $value) {
++                $quality = $candidate['score'] + $this->scoreFieldValue($key, $value);
++                if (! isset($fieldScores[$key]) || $quality > $fieldScores[$key]) {
++                    $fieldScores[$key] = $quality;
++                    $merged[$key] = $value;
++                }
++            }
++        }
++
++        return $merged;
++    }
++
++    private function scoreFieldValue(string $key, string $value): int
++    {
++        return match ($key) {
++            'nik' => preg_match('/^[0-9]{16}$/D', $value) ? 30 : -30,
++            'tanggal_lahir', 'berlaku_hingga' => preg_match('/^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$/D', $value) ? 15 : 0,
++            'jenis_kelamin' => in_array($value, ['LAKI-LAKI', 'PEREMPUAN'], true) ? 10 : 0,
++            'agama' => in_array($value, ['ISLAM', 'KRISTEN', 'KATOLIK', 'HINDU', 'BUDDHA', 'KONGHUCU'], true) ? 8 : 0,
++            'kewarganegaraan' => in_array($value, ['WNI', 'WNA'], true) ? 8 : 0,
++            default => min(8, intdiv(max(0, mb_strlen($value)), 4)),
++        };
++    }
++}
+diff --git a/app/Services/Basai/Test/UnavailableKtpOcrService.php b/app/Services/Basai/Test/UnavailableKtpOcrService.php
+new file mode 100644
+index 0000000..2c6b81c
+--- /dev/null
++++ b/app/Services/Basai/Test/UnavailableKtpOcrService.php
+@@ -0,0 +1,13 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++final class UnavailableKtpOcrService implements KtpOcrService
++{
++    public function read(string $image, string $mime): array
++    {
++        return ['status' => 'OCR_UNAVAILABLE', 'fields' => [], 'raw_text' => ''];
++    }
++}
+diff --git a/resources/views/basai/sandbox/ktp-capture.blade.php b/resources/views/basai/sandbox/ktp-capture.blade.php
+new file mode 100644
+index 0000000..51c67f3
+--- /dev/null
++++ b/resources/views/basai/sandbox/ktp-capture.blade.php
+@@ -0,0 +1,298 @@
++<style>
++    [data-ktp-panel] { border: 1px solid #ddd; border-radius: 4px; padding: 16px; margin-bottom: 24px; }
++    [data-ktp-panel] .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 16px; margin: 12px 0; }
++    [data-ktp-panel] .row > div { width: auto; float: none; padding: 0; min-width: 0; }
++    [data-ktp-panel] label, [data-ktp-panel] input[data-ktp-field] { display: block; width: 100%; box-sizing: border-box; }
++    [data-ktp-panel] [data-warnings] { color: #835313; }
++    [data-ktp-panel] [hidden] { display: none !important; }
++</style>
++
++<div class="panel panel-default" data-ktp-panel data-endpoint="{{ $endpoint ?? route('basai.test.ktp') }}" data-csrf="{{ csrf_token() }}">
++    <div class="panel-heading">
++        <div class="panel-title"><strong>Ambil Data KTP Saksi</strong></div>
++    </div>
++    <div class="panel-body">
++        <div class="form-group">
++            <button type="button" class="btn btn-default" data-ktp-action="openCamera">Buka Kamera</button>
++            <button type="button" class="btn btn-default" data-ktp-action="takePhoto" disabled>Ambil Foto</button>
++            <button type="button" class="btn btn-default" data-ktp-action="chooseFile">Pilih Gambar KTP</button>
++            <input type="file" data-file accept="image/jpeg,image/png" hidden>
++            <video data-camera hidden autoplay muted playsinline aria-label="Pratinjau kamera KTP" style="max-width:100%;display:block"></video>
++            <img data-preview hidden alt="Pratinjau gambar KTP" style="max-width:100%;max-height:240px;display:block">
++        </div>
++
++        <button type="button" class="btn btn-primary" data-ktp-action="save" disabled>Baca KTP</button>
++        <p role="status" data-status style="margin-top:8px"></p>
++        <ul class="text-warning" data-warnings hidden></ul>
++
++        <div class="row">
++            @foreach ([
++                'nik' => 'NIK', 'nama' => 'Nama',
++                'tempat_lahir' => 'Tempat Lahir', 'tanggal_lahir' => 'Tanggal Lahir',
++                'jenis_kelamin' => 'Jenis Kelamin', 'alamat' => 'Alamat',
++                'rt_rw' => 'RT/RW', 'kelurahan_desa' => 'Kelurahan/Desa',
++                'kecamatan' => 'Kecamatan', 'agama' => 'Agama',
++                'status_perkawinan' => 'Status Perkawinan', 'pekerjaan' => 'Pekerjaan',
++                'kewarganegaraan' => 'Kewarganegaraan', 'berlaku_hingga' => 'Berlaku Hingga',
++            ] as $key => $label)
++                <div class="col-sm-6 form-group">
++                    <label for="bas-ktp-{{ $key }}">{{ $label }}</label>
++                    <input id="bas-ktp-{{ $key }}" class="form-control" type="text"
++                        data-ktp-field="{{ $key }}" maxlength="{{ $key === 'nik' ? 16 : 255 }}"
++                        @if ($key === 'nik') inputmode="numeric" @endif autocomplete="off">
++                </div>
++            @endforeach
++        </div>
++        <details>
++            <summary>RAW OCR text</summary>
++            <pre data-raw style="white-space:pre-wrap">Belum ada teks OCR.</pre>
++        </details>
++        <button type="button" class="btn btn-default" disabled style="margin-top:10px">Submit ke SIPP</button>
++    </div>
++</div>
++
++<script>
++    (() => {
++        const panel = document.currentScript.previousElementSibling;
++        const find = selector => panel.querySelector(selector);
++        const refs = {
++            camera: find('[data-camera]'),
++            filePicker: find('[data-file]'),
++            rawOcr: find('details'),
++        };
++        const buttons = Object.fromEntries([...panel.querySelectorAll('[data-ktp-action]')].map(
++            button => [button.dataset.ktpAction, button]
++        ));
++        const state = {
++            stream: null,
++            cameraRequest: 0,
++            openingCamera: false,
++            capturing: false,
++            file: null,
++            preview: '',
++            status: '',
++            rawText: '',
++            warnings: [],
++            busy: false,
++
++            destroy() {
++                this.stopCamera();
++                if (this.preview) URL.revokeObjectURL(this.preview);
++            },
++
++            stopCamera() {
++                this.cameraRequest++;
++                this.openingCamera = false;
++                this.capturing = false;
++                if (this.stream) this.stream.getTracks().forEach(track => track.stop());
++                this.stream = null;
++                if (refs.camera) refs.camera.srcObject = null;
++            },
++
++            async openCamera() {
++                this.stopCamera();
++                const request = this.cameraRequest;
++                this.openingCamera = true;
++                try {
++                    const stream = await navigator.mediaDevices.getUserMedia({
++                        audio: false,
++                        video: {
++                            facingMode: { ideal: 'environment' },
++                            width: { ideal: 2560 },
++                            height: { ideal: 1440 }
++                        }
++                    });
++                    if (this.cameraRequest !== request) {
++                        stream.getTracks().forEach(track => track.stop());
++                        return;
++                    }
++                    this.stream = stream;
++                    refs.camera.srcObject = stream;
++                    const track = stream.getVideoTracks()[0];
++                    try {
++                        if (track?.getCapabilities?.().focusMode?.includes('continuous')) {
++                            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
++                        }
++                    } catch {
++                        // Gunakan fokus bawaan kamera.
++                    }
++                    if (this.cameraRequest === request) {
++                        this.status = 'Arahkan KTP hingga memenuhi frame, lalu ambil foto saat fokus stabil.';
++                    }
++                } catch {
++                    if (this.cameraRequest === request) this.status = 'Kamera tidak dapat dibuka. Periksa izin kamera atau pilih gambar.';
++                } finally {
++                    if (this.cameraRequest === request) this.openingCamera = false;
++                }
++            },
++
++            chooseFile() {
++                this.stopCamera();
++                refs.filePicker.click();
++            },
++
++            async takePhoto() {
++                const video = refs.camera;
++                const track = this.stream?.getVideoTracks()[0];
++                if (!video.videoWidth || !video.videoHeight || !track) {
++                    this.status = 'Kamera belum siap.';
++                    return;
++                }
++
++                if (this.openingCamera) return;
++                const request = ++this.cameraRequest;
++                this.capturing = true;
++                this.status = 'Mengambil foto KTP…';
++                let blob = null;
++                if (typeof window.ImageCapture === 'function') {
++                    try {
++                        blob = await new window.ImageCapture(track).takePhoto();
++                    } catch {
++                        // Gunakan frame video jika pengambilan foto gagal.
++                    }
++                }
++
++                if (request !== this.cameraRequest) return;
++                if (!blob || !['image/jpeg', 'image/png'].includes(blob.type) || blob.size > 5 * 1024 * 1024) {
++                    const canvas = document.createElement('canvas');
++                    canvas.width = video.videoWidth;
++                    canvas.height = video.videoHeight;
++                    canvas.getContext('2d').drawImage(video, 0, 0);
++                    blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.98));
++                }
++
++                if (request !== this.cameraRequest) return;
++                this.stopCamera();
++                if (!blob) {
++                    this.status = 'Foto tidak dapat diambil.';
++                    return;
++                }
++                const extension = blob.type === 'image/png' ? 'png' : 'jpg';
++                this.selectFile(new File([blob], 'capture-ktp.' + extension, { type: blob.type }));
++            },
++
++            selectFile(file) {
++                if (!file) return;
++                if (this.preview) URL.revokeObjectURL(this.preview);
++                this.preview = '';
++                this.file = null;
++                for (const input of panel.querySelectorAll('[data-ktp-field]')) input.value = '';
++                this.rawText = '';
++                this.warnings = [];
++                refs.rawOcr.open = false;
++                if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 5 * 1024 * 1024) {
++                    this.status = 'Pilih gambar JPEG atau PNG berukuran maksimal 5 MB.';
++                    return;
++                }
++                this.file = file;
++                this.preview = URL.createObjectURL(file);
++                this.status = 'Gambar siap dibaca.';
++            },
++
++            async save() {
++                if (!this.file || this.busy) return;
++                this.stopCamera();
++                this.busy = true;
++                this.status = 'Membaca gambar KTP…';
++                try {
++                    const encodedImage = await new Promise((resolve, reject) => {
++                        const reader = new FileReader();
++                        reader.onload = () => resolve(reader.result.split(',')[1]);
++                        reader.onerror = () => reject(reader.error);
++                        reader.readAsDataURL(this.file);
++                    });
++                    const response = await fetch(panel.dataset.endpoint, {
++                        method: 'POST',
++                        headers: {
++                            Accept: 'application/json',
++                            'Content-Type': 'application/json',
++                            'X-CSRF-TOKEN': panel.dataset.csrf,
++                        },
++                        body: JSON.stringify({ ktpImage: encodedImage }),
++                    });
++                    if (response.status === 419 || response.redirected) {
++                        this.status = 'Sesi BAS-AI berakhir. Muat ulang halaman dan masuk kembali.';
++                        return;
++                    }
++                    const result = await response.json();
++                    if (!response.ok) {
++                        this.status = result.errors?.ktpImage?.[0] || 'Gambar gagal dikirim. Coba lagi.';
++                        return;
++                    }
++                    this.showResult(result);
++                } catch {
++                    this.status = 'Gambar gagal dikirim. Coba lagi.';
++                } finally {
++                    this.busy = false;
++                }
++            },
++
++            showResult(result) {
++                this.status = {
++                    OCR_UNAVAILABLE: 'OCR belum tersedia (OCR_UNAVAILABLE). Gambar belum disimpan.',
++                    OCR_FAILED: 'OCR gagal dijalankan. Gambar belum disimpan.',
++                    OCR_NO_FIELDS: 'OCR tidak menemukan teks. Gambar belum disimpan.',
++                    OCR_REVIEW_REQUIRED: 'Teks terbaca, tetapi belum dapat dipetakan ke kolom KTP. Periksa teks OCR di bawah. Gambar belum disimpan.',
++                    OCR_REVIEW: 'Gambar tersimpan secara privat. Periksa dan koreksi kolom hasil OCR.',
++                    STORAGE_ERROR: 'Gambar KTP gagal disimpan.',
++                }[result.status] || result.status;
++                if (result.status === 'OCR_REVIEW') this.file = null;
++                for (const input of panel.querySelectorAll('[data-ktp-field]')) {
++                    if (Object.hasOwn(result.fields, input.dataset.ktpField)) input.value = result.fields[input.dataset.ktpField];
++                }
++                this.warnings = result.warnings;
++                this.rawText = result.raw_text;
++                if (result.status === 'OCR_REVIEW_REQUIRED') refs.rawOcr.open = true;
++            },
++        };
++
++        function render() {
++            buttons.openCamera.disabled = state.busy || state.openingCamera || state.capturing;
++            buttons.takePhoto.disabled = state.busy || state.openingCamera || state.capturing || !state.stream;
++            buttons.chooseFile.disabled = state.busy;
++            buttons.save.disabled = state.busy || !state.file;
++            refs.camera.hidden = !state.stream;
++            const preview = find('[data-preview]');
++            if (state.preview) preview.src = state.preview;
++            else preview.removeAttribute('src');
++            preview.hidden = !state.preview;
++            find('[data-status]').textContent = state.status;
++            find('[data-raw]').textContent = state.rawText || 'Belum ada teks OCR.';
++            const warnings = find('[data-warnings]');
++            warnings.replaceChildren(...state.warnings.map(message => {
++                const warning = document.createElement('li');
++                warning.textContent = message;
++                return warning;
++            }));
++            warnings.hidden = !state.warnings.length;
++        }
++
++        for (const [action, button] of Object.entries(buttons)) {
++            button.addEventListener('click', async () => {
++                try {
++                    const task = state[action]();
++                    render();
++                    await task;
++                } catch {
++                    state.stopCamera();
++                    state.status = 'Aksi KTP gagal. Coba lagi.';
++                } finally {
++                    render();
++                }
++            });
++        }
++
++        refs.filePicker.addEventListener('change', () => {
++            state.selectFile(refs.filePicker.files[0]);
++            refs.filePicker.value = '';
++            render();
++        });
++        window.addEventListener('pagehide', () => {
++            state.destroy();
++            state.preview = '';
++            state.file = null;
++            render();
++        });
++        render();
++    })();
++</script>
+diff --git a/resources/views/basai/test-audio.blade.php b/resources/views/basai/test-audio.blade.php
+index 31fad3f..e18f77e 100644
+--- a/resources/views/basai/test-audio.blade.php
++++ b/resources/views/basai/test-audio.blade.php
+@@ -87,6 +87,8 @@
+     </div>
+ @endif
+ 
++@include('basai.sandbox.ktp-capture', ['endpoint' => route('basai.test.ktp')])
++
+ <form
+     id="audio-form"
+     method="POST"
+diff --git a/routes/web.php b/routes/web.php
+index 2976e9c..45ec8a7 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -2,6 +2,7 @@
+ 
+ use App\Http\Controllers\Auth\SippLoginController;
+ use App\Http\Controllers\Basai\BasaiTestController;
++use App\Http\Controllers\Basai\BasaiTestKtpController;
+ use App\Http\Controllers\BasExportController;
+ use App\Http\Middleware\RequireBasaiAuthentication;
+ use App\Livewire\BasAiAssistant;
+@@ -59,3 +60,7 @@ Route::get('/basai/test', [BasaiTestController::class, 'show'])
+ Route::post('/basai/test', [BasaiTestController::class, 'transcribe'])
+     ->middleware(RequireBasaiAuthentication::class)
+     ->name('basai.test.transcribe');
++
++Route::post('/basai/test/ktp', BasaiTestKtpController::class)
++    ->middleware(RequireBasaiAuthentication::class)
++    ->name('basai.test.ktp');

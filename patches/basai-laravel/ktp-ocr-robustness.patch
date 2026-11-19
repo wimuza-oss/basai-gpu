@@ -1,0 +1,540 @@
+diff --git a/app/Services/Basai/Test/KtpOcrTextParser.php b/app/Services/Basai/Test/KtpOcrTextParser.php
+index 51a860d..c3c00b5 100644
+--- a/app/Services/Basai/Test/KtpOcrTextParser.php
++++ b/app/Services/Basai/Test/KtpOcrTextParser.php
+@@ -9,46 +9,178 @@ final class KtpOcrTextParser
+     /** @return array<string, string> */
+     public function parse(string $text): array
+     {
+-        $labels = [
+-            'nik' => 'NIK',
+-            'nama' => 'Nama',
+-            'tempat_tanggal_lahir' => 'Tempat\s*(?:[,/]|dan)?\s*(?:Tgl\.?|Tanggal)\s+Lahir',
+-            'jenis_kelamin' => 'Jenis\s+Kelamin',
+-            'alamat' => 'Alamat',
+-            'rt_rw' => 'RT\s*/\s*RW',
+-            'kelurahan_desa' => 'Kel(?:urahan)?\.?\s*/\s*Desa',
+-            'kecamatan' => 'Kecamatan',
+-            'agama' => 'Agama',
+-            'status_perkawinan' => 'Status\s+Perkawinan',
+-            'pekerjaan' => 'Pekerjaan',
+-            'kewarganegaraan' => 'Kewarganegaraan',
+-            'berlaku_hingga' => 'Berlaku\s+Hingga',
+-        ];
++        $text = $this->normalizeText($text);
++        $lines = array_values(array_filter(array_map('trim', preg_split('/\R/u', $text) ?: [])));
+         $fields = [];
+ 
+-        foreach ($labels as $key => $label) {
+-            if (! preg_match('~^\h*'.$label.'(?:\h*[:：]\h*|\h+)([^\r\n]+)~imu', $text, $match)) {
++        foreach ($lines as $line) {
++            $this->parseLine($line, $fields);
++        }
++
++        $this->applyFallbacks($text, $fields);
++        $this->normalizeKnownValues($fields);
++
++        return array_filter($fields, static fn (string $value): bool => $value !== '');
++    }
++
++    private function normalizeText(string $text): string
++    {
++        $text = str_replace(["\u{00A0}", '：'], [' ', ':'], mb_scrub($text, 'UTF-8'));
++        $text = preg_replace('/[\t ]+/u', ' ', $text) ?? $text;
++        $text = preg_replace('/ *: */u', ': ', $text) ?? $text;
++
++        return trim($text);
++    }
++
++    /** @param array<string, string> $fields */
++    private function parseLine(string $line, array &$fields): void
++    {
++        $rules = [
++            'nik' => '(?:N[I1L][KX])',
++            'nama' => 'NAMA',
++            'tempat_tanggal_lahir' => '(?:TEMPAT\s*(?:[/|I\\-]\s*)?(?:T(?:GL|GI|6L)\.?|TANGGAL)\s*LAHIR)',
++            'jenis_kelamin' => 'JENIS\s+KELAMIN',
++            'alamat' => 'ALAMAT',
++            'rt_rw' => 'RT\s*[/|I\\-]\s*RW',
++            'kelurahan_desa' => '(?:KEL(?:URAHAN)?\.?\s*[/|I\\-]\s*DESA|KEL\s*/\s*DESA)',
++            'kecamatan' => 'KECAMATAN',
++            'agama' => 'AGAMA',
++            'status_perkawinan' => 'STATUS\s+PERKAWINAN',
++            'pekerjaan' => 'PEKERJAAN',
++            'kewarganegaraan' => 'KEWARGANEGARAAN',
++            'berlaku_hingga' => 'BERLAKU\s+HINGGA',
++        ];
++
++        foreach ($rules as $key => $label) {
++            if (! preg_match('~^\s*'.$label.'\s*(?::|\s)\s*(.+)$~iu', $line, $match)) {
+                 continue;
+             }
+ 
+-            $value = trim($match[1]);
++            $value = trim($match[1], " \t\n\r\0\x0B:;|-");
++            if ($value === '') {
++                return;
++            }
++
+             if ($key === 'nik') {
+-                $digits = preg_replace('/\h+/u', '', $value);
++                $digits = preg_replace('/\D+/', '', $value) ?? '';
+                 if (preg_match('/^[0-9]{16}$/D', $digits)) {
+-                    $fields[$key] = $digits;
+-                }
+-            } elseif ($key === 'tempat_tanggal_lahir') {
+-                if (preg_match('~^(.*?)\s*[,;]?\s*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\s*$~u', $value, $birth)) {
+-                    $fields['tempat_lahir'] = rtrim(trim($birth[1]), ',; ');
+-                    $fields['tanggal_lahir'] = $birth[2];
++                    $fields['nik'] = $digits;
+                 }
+-            } elseif ($value !== '') {
+-                $fields[$key] = $key === 'jenis_kelamin'
+-                    ? trim(preg_split('/\h+Gol\.?\h*Darah\b/iu', $value, 2)[0])
+-                    : $value;
++                return;
+             }
++
++            if ($key === 'tempat_tanggal_lahir') {
++                $this->parseBirthValue($value, $fields);
++                return;
++            }
++
++            if ($key === 'jenis_kelamin') {
++                $value = preg_split('/\s+GOL\.?\s*DARAH\b/iu', $value, 2)[0] ?? $value;
++            } elseif ($key === 'alamat') {
++                $value = preg_replace('/^\d+\s+(?=(?:JL\.?|JALAN)\b)/iu', '', $value) ?? $value;
++                $value = preg_replace('/\s+-\s+[A-Z][0-9]{0,2}\s*$/iu', '', $value) ?? $value;
++            } elseif ($key === 'pekerjaan') {
++                $value = preg_replace('/\s+[0-9]{1,2}\s*$/u', '', $value) ?? $value;
++            }
++
++            $fields[$key] = trim($value);
++            return;
++        }
++    }
++
++    /** @param array<string, string> $fields */
++    private function parseBirthValue(string $value, array &$fields): void
++    {
++        if (! preg_match('~^(.*?)\s*[,;]?\s*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\b~u', $value, $birth)) {
++            return;
++        }
++
++        $place = trim($birth[1], " ,;:-\t");
++        if ($place !== '') {
++            $fields['tempat_lahir'] = $place;
++        }
++        $fields['tanggal_lahir'] = $this->normalizeDate($birth[2]);
++    }
++
++    /** @param array<string, string> $fields */
++    private function applyFallbacks(string $text, array &$fields): void
++    {
++        if (! isset($fields['nik']) && preg_match('/\b[0-9]{16}\b/u', $text, $match)) {
++            $fields['nik'] = $match[0];
+         }
+ 
+-        return $fields;
++        if ((! isset($fields['tempat_lahir']) || ! isset($fields['tanggal_lahir']))
++            && preg_match('~(?:LAHIR|L4HIR)[^\r\n]*?([A-Z][A-Z .\'-]{2,}?)\s*[,;:]?\s*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\b~iu', $text, $match)) {
++            $place = trim($match[1], " ,;:-\t");
++            if ($place !== '') {
++                $fields['tempat_lahir'] ??= $place;
++            }
++            $fields['tanggal_lahir'] ??= $this->normalizeDate($match[2]);
++        }
++
++        if (! isset($fields['tanggal_lahir'])
++            && preg_match('/\b([0-9]{1,2}[-/.][0-9]{1,2}[-/.](?:19|20)[0-9]{2})\b/u', $text, $match)) {
++            $fields['tanggal_lahir'] = $this->normalizeDate($match[1]);
++        }
++    }
++
++    /** @param array<string, string> $fields */
++    private function normalizeKnownValues(array &$fields): void
++    {
++        if (isset($fields['jenis_kelamin'])) {
++            $upper = mb_strtoupper($fields['jenis_kelamin']);
++            if (str_contains($upper, 'PEREMPUAN')) {
++                $fields['jenis_kelamin'] = 'PEREMPUAN';
++            } elseif (preg_match('/LAKI\s*[- ]?\s*LAKI/u', $upper)) {
++                $fields['jenis_kelamin'] = 'LAKI-LAKI';
++            }
++        }
++
++        if (isset($fields['rt_rw']) && preg_match('/\b([0-9]{1,3})\s*[/|I\\-]\s*([0-9]{1,3})\b/u', $fields['rt_rw'], $match)) {
++            $fields['rt_rw'] = $match[1].'/'.$match[2];
++        }
++
++        if (isset($fields['agama'])) {
++            $fields['agama'] = $this->pickKnownValue($fields['agama'], [
++                'ISLAM', 'KRISTEN', 'KATOLIK', 'HINDU', 'BUDDHA', 'KONGHUCU',
++            ]);
++        }
++
++        if (isset($fields['status_perkawinan'])) {
++            $fields['status_perkawinan'] = $this->pickKnownValue($fields['status_perkawinan'], [
++                'BELUM KAWIN', 'KAWIN', 'CERAI HIDUP', 'CERAI MATI',
++            ]);
++        }
++
++        if (isset($fields['kewarganegaraan'])) {
++            $upper = mb_strtoupper($fields['kewarganegaraan']);
++            if (preg_match('/\bWNI\b/u', $upper)) {
++                $fields['kewarganegaraan'] = 'WNI';
++            } elseif (preg_match('/\bWNA\b/u', $upper)) {
++                $fields['kewarganegaraan'] = 'WNA';
++            }
++        }
++
++        if (isset($fields['berlaku_hingga'])) {
++            $upper = mb_strtoupper($fields['berlaku_hingga']);
++            if (str_contains($upper, 'SEUMUR HIDUP')) {
++                $fields['berlaku_hingga'] = 'SEUMUR HIDUP';
++            } elseif (preg_match('/\b([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\b/u', $fields['berlaku_hingga'], $match)) {
++                $fields['berlaku_hingga'] = $this->normalizeDate($match[1]);
++            }
++        }
++    }
++
++    /** @param list<string> $known */
++    private function pickKnownValue(string $value, array $known): string
++    {
++        $upper = mb_strtoupper($value);
++        foreach ($known as $candidate) {
++            if (str_contains($upper, $candidate)) {
++                return $candidate;
++            }
++        }
++
++        return trim($value);
++    }
++
++    private function normalizeDate(string $date): string
++    {
++        return str_replace(['/', '.'], '-', $date);
+     }
+ }
+diff --git a/app/Services/Basai/Test/TesseractKtpOcrService.php b/app/Services/Basai/Test/TesseractKtpOcrService.php
+index 218cca7..179de6e 100644
+--- a/app/Services/Basai/Test/TesseractKtpOcrService.php
++++ b/app/Services/Basai/Test/TesseractKtpOcrService.php
+@@ -18,37 +18,176 @@ final class TesseractKtpOcrService implements KtpOcrService
+             return (new UnavailableKtpOcrService)->read($image, $mime);
+         }
+ 
+-        $text = $this->recognize($command, $image, '6');
+-        if ($text === null) {
+-            return ['status' => 'OCR_FAILED', 'fields' => [], 'raw_text' => ''];
+-        }
++        $variants = $this->buildImageVariants($image);
++        $candidates = [];
+ 
+-        $fields = $this->parser->parse($text);
+-        if ($fields === []) {
+-            $alternate = $this->recognize($command, $image, '11');
+-            if ($alternate !== null && $alternate !== '') {
+-                $fields = $this->parser->parse($alternate);
+-                if ($fields !== [] || $text === '') {
+-                    $text = $alternate;
++        foreach ($variants as $variantName => $variantImage) {
++            foreach (['6', '11'] as $psm) {
++                $text = $this->recognize($command, $variantImage, $psm);
++                if ($text === null || $text === '') {
++                    continue;
+                 }
++
++                $fields = $this->parser->parse($text);
++                $candidates[] = [
++                    'variant' => $variantName,
++                    'psm' => $psm,
++                    'text' => $text,
++                    'fields' => $fields,
++                    'score' => $this->scoreFields($fields),
++                ];
+             }
+         }
+ 
++        if ($candidates === []) {
++            return ['status' => 'OCR_FAILED', 'fields' => [], 'raw_text' => ''];
++        }
++
++        usort($candidates, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
++        $best = $candidates[0];
++        $fields = $this->mergeFields($candidates);
++
+         return [
+             'status' => $fields === [] ? 'OCR_NO_FIELDS' : 'OCR_REVIEW',
+             'fields' => $fields,
+-            'raw_text' => $text,
++            'raw_text' => $best['text'],
+         ];
+     }
+ 
++    /** @return array<string, string> */
++    private function buildImageVariants(string $image): array
++    {
++        $variants = ['original' => $image];
++        if (! function_exists('imagecreatefromstring')) {
++            return $variants;
++        }
++
++        $source = @imagecreatefromstring($image);
++        if ($source === false) {
++            return $variants;
++        }
++
++        try {
++            $width = imagesx($source);
++            $height = imagesy($source);
++            if ($width < 1 || $height < 1) {
++                return $variants;
++            }
++
++            $targetWidth = min(2400, max($width, 1800));
++            $scale = $targetWidth / $width;
++            $targetHeight = max(1, (int) round($height * $scale));
++
++            $prepared = imagecreatetruecolor($targetWidth, $targetHeight);
++            if ($prepared === false) {
++                return $variants;
++            }
++
++            imagecopyresampled($prepared, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
++            imagefilter($prepared, IMG_FILTER_GRAYSCALE);
++            imagefilter($prepared, IMG_FILTER_CONTRAST, -28);
++            @imageconvolution($prepared, [[0, -1, 0], [-1, 5, -1], [0, -1, 0]], 1, 0);
++
++            $full = $this->encodePng($prepared);
++            if ($full !== null) {
++                $variants['prepared_full'] = $full;
++            }
++
++            $cropWidth = max(1, (int) round($targetWidth * 0.78));
++            $left = imagecrop($prepared, ['x' => 0, 'y' => 0, 'width' => $cropWidth, 'height' => $targetHeight]);
++            if ($left !== false) {
++                $cropped = $this->encodePng($left);
++                if ($cropped !== null) {
++                    $variants['prepared_left'] = $cropped;
++                }
++                imagedestroy($left);
++            }
++
++            imagedestroy($prepared);
++        } finally {
++            imagedestroy($source);
++        }
++
++        return $variants;
++    }
++
++    private function encodePng(\GdImage $image): ?string
++    {
++        ob_start();
++        $ok = imagepng($image, null, 6);
++        $bytes = ob_get_clean();
++
++        return $ok && is_string($bytes) && $bytes !== '' ? $bytes : null;
++    }
++
+     private function recognize(string $command, string $image, string $mode): ?string
+     {
+         try {
+-            $process = new Process([$command, 'stdin', 'stdout', '-l', 'ind', '--psm', $mode], input: $image, timeout: 10);
++            $process = new Process([
++                $command,
++                'stdin',
++                'stdout',
++                '-l',
++                'ind',
++                '--oem',
++                '1',
++                '--psm',
++                $mode,
++                '-c',
++                'preserve_interword_spaces=1',
++            ], input: $image, timeout: 15);
+ 
+             return $process->run() === 0 ? trim(mb_scrub($process->getOutput(), 'UTF-8')) : null;
+         } catch (\RuntimeException) {
+             return null;
+         }
+     }
++
++    /** @param array<string, string> $fields */
++    private function scoreFields(array $fields): int
++    {
++        $score = count($fields) * 2;
++        $score += isset($fields['nik']) && preg_match('/^[0-9]{16}$/D', $fields['nik']) ? 12 : 0;
++        $score += isset($fields['nama']) ? 4 : 0;
++        $score += isset($fields['tempat_lahir']) ? 4 : 0;
++        $score += isset($fields['tanggal_lahir']) ? 6 : 0;
++        $score += isset($fields['alamat']) ? 3 : 0;
++        $score += isset($fields['rt_rw']) ? 2 : 0;
++
++        return $score;
++    }
++
++    /**
++     * @param list<array{fields: array<string, string>, score: int, text: string, variant: string, psm: string}> $candidates
++     * @return array<string, string>
++     */
++    private function mergeFields(array $candidates): array
++    {
++        $merged = [];
++        $fieldScores = [];
++
++        foreach ($candidates as $candidate) {
++            foreach ($candidate['fields'] as $key => $value) {
++                $quality = $candidate['score'] + $this->scoreFieldValue($key, $value);
++                if (! isset($fieldScores[$key]) || $quality > $fieldScores[$key]) {
++                    $fieldScores[$key] = $quality;
++                    $merged[$key] = $value;
++                }
++            }
++        }
++
++        return $merged;
++    }
++
++    private function scoreFieldValue(string $key, string $value): int
++    {
++        return match ($key) {
++            'nik' => preg_match('/^[0-9]{16}$/D', $value) ? 30 : -30,
++            'tanggal_lahir', 'berlaku_hingga' => preg_match('/^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$/D', $value) ? 15 : 0,
++            'jenis_kelamin' => in_array($value, ['LAKI-LAKI', 'PEREMPUAN'], true) ? 10 : 0,
++            'agama' => in_array($value, ['ISLAM', 'KRISTEN', 'KATOLIK', 'HINDU', 'BUDDHA', 'KONGHUCU'], true) ? 8 : 0,
++            'kewarganegaraan' => in_array($value, ['WNI', 'WNA'], true) ? 8 : 0,
++            default => min(8, intdiv(max(0, mb_strlen($value)), 4)),
++        };
++    }
+ }
+diff --git a/resources/views/livewire/bas-ai-test-assistant.blade.php b/resources/views/livewire/bas-ai-test-assistant.blade.php
+index 8b7591a..8ad9c61 100644
+--- a/resources/views/livewire/bas-ai-test-assistant.blade.php
++++ b/resources/views/livewire/bas-ai-test-assistant.blade.php
+@@ -1,14 +1,27 @@
+                         const stream = await navigator.mediaDevices.getUserMedia({
+                             audio: false,
+-                            video: { facingMode: { ideal: 'environment' } }
++                            video: {
++                                facingMode: { ideal: 'environment' },
++                                width: { ideal: 2560 },
++                                height: { ideal: 1440 }
++                            }
+                         });
+                         if (this.cameraRequest !== request) {
+                             stream.getTracks().forEach(track => track.stop());
+                             return;
+                         }
++                        const track = stream.getVideoTracks()[0];
++                        if (track && typeof track.getCapabilities === 'function' && typeof track.applyConstraints === 'function') {
++                            const capabilities = track.getCapabilities();
++                            if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes('continuous')) {
++                                try {
++                                    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
++                                } catch (_) {}
++                            }
++                        }
+                         this.stream = stream;
+                         this.$refs.camera.srcObject = stream;
+-                        this.status = '';
++                        this.status = 'Arahkan KTP hingga memenuhi frame, tunggu fokus stabil, lalu ambil foto.';
+                     } catch {
+                         if (this.cameraRequest === request) this.status = 'Kamera tidak dapat dibuka. Periksa izin kamera atau pilih gambar.';
+                     } finally {
+@@ -21,12 +34,30 @@
+                     this.$refs.filePicker.click();
+                 },
+ 
+-                takePhoto() {
++                async takePhoto() {
+                     const video = this.$refs.camera;
+-                    if (!video.videoWidth || !video.videoHeight) {
++                    const track = this.stream?.getVideoTracks?.()[0] || null;
++                    if (!video.videoWidth || !video.videoHeight || !track) {
+                         this.status = 'Kamera belum siap.';
+                         return;
+                     }
++
++                    this.status = 'Mengunci fokus dan mengambil foto…';
++                    await new Promise(resolve => setTimeout(resolve, 500));
++
++                    if ('ImageCapture' in window) {
++                        try {
++                            const blob = await new ImageCapture(track).takePhoto();
++                            this.stopCamera();
++                            if (blob && ['image/jpeg', 'image/png'].includes(blob.type)) {
++                                this.selectFile(new File([blob], 'capture-ktp.' + (blob.type === 'image/png' ? 'png' : 'jpg'), { type: blob.type }));
++                                return;
++                            }
++                        } catch (_) {
++                            // Fallback ke canvas di bawah.
++                        }
++                    }
++
+                     const canvas = document.createElement('canvas');
+                     canvas.width = video.videoWidth;
+                     canvas.height = video.videoHeight;
+@@ -37,6 +68,6 @@
+                             this.status = 'Foto tidak dapat diambil.';
+                             return;
+                         }
+-                        this.selectFile(new File([blob], 'capture.jpg', { type: 'image/jpeg' }));
+-                    }, 'image/jpeg', 0.92);
++                        this.selectFile(new File([blob], 'capture-ktp.jpg', { type: 'image/jpeg' }));
++                    }, 'image/jpeg', 0.98);
+                 },
+
+diff --git a/tests/Feature/BasKtpOcrParserTest.php b/tests/Feature/BasKtpOcrParserTest.php
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/Feature/BasKtpOcrParserTest.php
+@@ -0,0 +1,45 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Services\Basai\Test\KtpOcrTextParser;
++use Tests\TestCase;
++
++class BasKtpOcrParserTest extends TestCase
++{
++    public function test_it_recovers_structured_fields_from_noisy_ktp_text(): void
++    {
++        $text = <<<'OCR'
++NIK : 3171234567890123
++Nama : MIRA SETIAWAN
++Tempat/Tgi Lahir : JAKARTA, 18-02-1986
++Jenis Kelamin : PEREMPUAN Gol. Darah : B
++Alamat : 1 JL. PASTI CEPAT A7/66 - P1
++RT/RW : 007/008 aa
++Kel/Desa : PEGADUNGAN
++Kecamatan : KALIDERES
++Agama : ISLAM -h
++Status Perkawinan : KAWIN
++Pekerjaan : PEGAWAI SWASTA 2
++Kewarganegaraan : WNI JAKARTA BARAT
++Berlaku Hingga : -- : 22-02-2017 02-12-2012
++OCR;
++
++        $fields = app(KtpOcrTextParser::class)->parse($text);
++
++        $this->assertSame('3171234567890123', $fields['nik']);
++        $this->assertSame('MIRA SETIAWAN', $fields['nama']);
++        $this->assertSame('JAKARTA', $fields['tempat_lahir']);
++        $this->assertSame('18-02-1986', $fields['tanggal_lahir']);
++        $this->assertSame('PEREMPUAN', $fields['jenis_kelamin']);
++        $this->assertSame('JL. PASTI CEPAT A7/66', $fields['alamat']);
++        $this->assertSame('007/008', $fields['rt_rw']);
++        $this->assertSame('PEGADUNGAN', $fields['kelurahan_desa']);
++        $this->assertSame('KALIDERES', $fields['kecamatan']);
++        $this->assertSame('ISLAM', $fields['agama']);
++        $this->assertSame('KAWIN', $fields['status_perkawinan']);
++        $this->assertSame('PEGAWAI SWASTA', $fields['pekerjaan']);
++        $this->assertSame('WNI', $fields['kewarganegaraan']);
++        $this->assertSame('22-02-2017', $fields['berlaku_hingga']);
++    }
++}
