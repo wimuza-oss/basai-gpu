@@ -486,3 +486,55 @@ index 8b7591a..8ad9c61 100644
 +                        this.selectFile(new File([blob], 'capture-ktp.jpg', { type: 'image/jpeg' }));
 +                    }, 'image/jpeg', 0.98);
                  },
+
+diff --git a/tests/Feature/BasKtpOcrParserTest.php b/tests/Feature/BasKtpOcrParserTest.php
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/Feature/BasKtpOcrParserTest.php
+@@ -0,0 +1,45 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Services\Basai\Test\KtpOcrTextParser;
++use Tests\TestCase;
++
++class BasKtpOcrParserTest extends TestCase
++{
++    public function test_it_recovers_structured_fields_from_noisy_ktp_text(): void
++    {
++        $text = <<<'OCR'
++NIK : 3171234567890123
++Nama : MIRA SETIAWAN
++Tempat/Tgi Lahir : JAKARTA, 18-02-1986
++Jenis Kelamin : PEREMPUAN Gol. Darah : B
++Alamat : 1 JL. PASTI CEPAT A7/66 - P1
++RT/RW : 007/008 aa
++Kel/Desa : PEGADUNGAN
++Kecamatan : KALIDERES
++Agama : ISLAM -h
++Status Perkawinan : KAWIN
++Pekerjaan : PEGAWAI SWASTA 2
++Kewarganegaraan : WNI JAKARTA BARAT
++Berlaku Hingga : -- : 22-02-2017 02-12-2012
++OCR;
++
++        $fields = app(KtpOcrTextParser::class)->parse($text);
++
++        $this->assertSame('3171234567890123', $fields['nik']);
++        $this->assertSame('MIRA SETIAWAN', $fields['nama']);
++        $this->assertSame('JAKARTA', $fields['tempat_lahir']);
++        $this->assertSame('18-02-1986', $fields['tanggal_lahir']);
++        $this->assertSame('PEREMPUAN', $fields['jenis_kelamin']);
++        $this->assertSame('JL. PASTI CEPAT A7/66', $fields['alamat']);
++        $this->assertSame('007/008', $fields['rt_rw']);
++        $this->assertSame('PEGADUNGAN', $fields['kelurahan_desa']);
++        $this->assertSame('KALIDERES', $fields['kecamatan']);
++        $this->assertSame('ISLAM', $fields['agama']);
++        $this->assertSame('KAWIN', $fields['status_perkawinan']);
++        $this->assertSame('PEGAWAI SWASTA', $fields['pekerjaan']);
++        $this->assertSame('WNI', $fields['kewarganegaraan']);
++        $this->assertSame('22-02-2017', $fields['berlaku_hingga']);
++    }
++}
