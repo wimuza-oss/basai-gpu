@@ -1,0 +1,10 @@
+.git
+.env
+models
+.pytest_cache
+__pycache__
+tests
+integration
+*.jpg
+*.jpeg
+*.png
