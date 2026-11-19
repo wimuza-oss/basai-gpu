@@ -1,0 +1,141 @@
+diff --git a/app/Livewire/BasAiTestAssistant.php b/app/Livewire/BasAiTestAssistant.php
+index 59cf77a..fcea308 100644
+--- a/app/Livewire/BasAiTestAssistant.php
++++ b/app/Livewire/BasAiTestAssistant.php
+@@ -12,7 +12,7 @@ use App\Models\PaniteraPn;
+ use App\Models\SippUser;
+ use App\Services\BasAudioTranscriptService;
+ use App\Services\Basai\Test\KtpCaptureService;
+-use App\Services\Basai\Test\UnavailableKtpOcrService;
++use App\Services\Basai\Test\TesseractKtpOcrService;
+ use App\Services\BasMultiChannelAudioService;
+ use App\Services\BasTemplateProcessor;
+ use App\Services\N8nPipelineMockService;
+@@ -3051,7 +3051,7 @@ class BasAiTestAssistant extends Component
+         return $labels[$key] ?? $key;
+     }
+ 
+-    public function saveKtpCapture(string $encodedImage, KtpCaptureService $captures, UnavailableKtpOcrService $ocr): void
++    public function saveKtpCapture(string $encodedImage, KtpCaptureService $captures, TesseractKtpOcrService $ocr): void
+     {
+         $auth = session('basai.auth', []);
+         abort_unless(is_array($auth) && ! empty($auth['username']) && ! empty($auth['fullname']), 403);
+diff --git a/app/Services/Basai/Test/KtpOcrTextParser.php b/app/Services/Basai/Test/KtpOcrTextParser.php
+new file mode 100644
+index 0000000..a98aedb
+--- /dev/null
++++ b/app/Services/Basai/Test/KtpOcrTextParser.php
+@@ -0,0 +1,54 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++final class KtpOcrTextParser
++{
++    /** @return array<string, string> */
++    public function parse(string $text): array
++    {
++        $labels = [
++            'nik' => 'NIK',
++            'nama' => 'Nama',
++            'tempat_tanggal_lahir' => 'Tempat\s*(?:[,/]|dan)?\s*(?:Tgl\.?|Tanggal)\s+Lahir',
++            'jenis_kelamin' => 'Jenis\s+Kelamin',
++            'alamat' => 'Alamat',
++            'rt_rw' => 'RT\s*/\s*RW',
++            'kelurahan_desa' => 'Kel(?:urahan)?\.?\s*/\s*Desa',
++            'kecamatan' => 'Kecamatan',
++            'agama' => 'Agama',
++            'status_perkawinan' => 'Status\s+Perkawinan',
++            'pekerjaan' => 'Pekerjaan',
++            'kewarganegaraan' => 'Kewarganegaraan',
++            'berlaku_hingga' => 'Berlaku\s+Hingga',
++        ];
++        $fields = [];
++
++        foreach ($labels as $key => $label) {
++            if (! preg_match('~^\h*'.$label.'(?:\h*:\h*|\h+)([^\r\n]+)~imu', $text, $match)) {
++                continue;
++            }
++
++            $value = trim($match[1]);
++            if ($key === 'nik') {
++                $digits = preg_replace('/\h+/u', '', $value);
++                if (preg_match('/^[0-9]{16}$/D', $digits)) {
++                    $fields[$key] = $digits;
++                }
++            } elseif ($key === 'tempat_tanggal_lahir') {
++                if (preg_match('~^(.*?)\s*[,;]?\s*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})\s*$~u', $value, $birth)) {
++                    $fields['tempat_lahir'] = rtrim(trim($birth[1]), ',; ');
++                    $fields['tanggal_lahir'] = $birth[2];
++                }
++            } elseif ($value !== '') {
++                $fields[$key] = $key === 'jenis_kelamin'
++                    ? trim(preg_split('/\h+Gol\.?\h*Darah\b/iu', $value, 2)[0])
++                    : $value;
++            }
++        }
++
++        return $fields;
++    }
++}
+diff --git a/app/Services/Basai/Test/TesseractKtpOcrService.php b/app/Services/Basai/Test/TesseractKtpOcrService.php
+new file mode 100644
+index 0000000..73afc0d
+--- /dev/null
++++ b/app/Services/Basai/Test/TesseractKtpOcrService.php
+@@ -0,0 +1,39 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++use Symfony\Component\Process\ExecutableFinder;
++use Symfony\Component\Process\Process;
++
++final class TesseractKtpOcrService implements KtpOcrService
++{
++    public function __construct(private KtpOcrTextParser $parser) {}
++
++    public function read(string $image, string $mime): array
++    {
++        $command = (new ExecutableFinder)->find('tesseract');
++        if ($command === null || ! function_exists('proc_open')) {
++            return (new UnavailableKtpOcrService)->read($image, $mime);
++        }
++
++        try {
++            $process = new Process([$command, 'stdin', 'stdout', '-l', 'ind', '--psm', '6'], input: $image, timeout: 20);
++            if ($process->run() !== 0) {
++                return ['status' => 'OCR_FAILED', 'fields' => [], 'raw_text' => ''];
++            }
++        } catch (\RuntimeException) {
++            return ['status' => 'OCR_FAILED', 'fields' => [], 'raw_text' => ''];
++        }
++
++        $text = trim(mb_scrub($process->getOutput(), 'UTF-8'));
++        $fields = $this->parser->parse($text);
++
++        return [
++            'status' => $fields === [] ? 'OCR_NO_FIELDS' : 'OCR_REVIEW',
++            'fields' => $fields,
++            'raw_text' => $text,
++        ];
++    }
++}
+diff --git a/resources/views/livewire/bas-ai-test-assistant.blade.php b/resources/views/livewire/bas-ai-test-assistant.blade.php
+index 437977e..4d858fa 100644
+--- a/resources/views/livewire/bas-ai-test-assistant.blade.php
++++ b/resources/views/livewire/bas-ai-test-assistant.blade.php
+@@ -1205,6 +1205,9 @@
+                 showResult(result) {
+                     this.status = {
+                         OCR_UNAVAILABLE: 'Gambar disimpan secara privat. OCR belum tersedia (OCR_UNAVAILABLE).',
++                        OCR_FAILED: 'Gambar disimpan secara privat. OCR gagal dijalankan.',
++                        OCR_NO_FIELDS: 'Gambar disimpan secara privat. Tidak ada kolom yang berhasil dikenali. Periksa teks OCR atau gunakan foto yang lebih jelas.',
++                        OCR_REVIEW: 'Pembacaan selesai. Periksa dan koreksi kolom sebelum melanjutkan.',
+                         STORAGE_ERROR: 'Gambar KTP gagal disimpan.',
+                     }[result.status] || result.status;
+                     if (result.status !== 'STORAGE_ERROR') {
