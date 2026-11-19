@@ -23,3 +23,13 @@ Client produksi `App\Services\Basai\Ktp\GpuKtpOcrClient` tidak bergantung pada r
 - Tunnel SSH harus terenkripsi dan restart otomatis; unit systemd baru harus disetujui admin.
 - Endpoint GPU sengaja hanya listen 127.0.0.1 pada host GPU.
 - Foto KTP asli tetap di private storage Laravel dan tidak dikirim ke layanan OCR eksternal.
+
+## Tujuh kolom prioritas identitas saksi
+
+Kontrak respons GPU selalu mengirim \`required_fields\`, \`missing_fields\`, dan \`required_complete\` untuk:
+
+\`nik\`, \`nama\`, \`tempat_lahir\`, \`tanggal_lahir\`, \`alamat\`, \`agama\`, \`pekerjaan\`.
+
+Semua input tetap dapat diedit operator. GPU **tidak mengarang nilai** untuk field yang tidak terbaca; \`missing_fields\` harus ditampilkan di UI (label berbahasa Indonesia), dan tidak boleh disamakan dengan nilai yang berhasil dibaca. Status \`OCR_REVIEW\` masih berarti *sebagian teks terbaca*, bukan ketujuh kolom lengkap. Sebelum integrasi pengiriman SIPP, validasi semua kolom prioritas terisi, tanggal valid, NIK tepat 16 digit, dokumen sesuai perkara/sidang, dan operator mengonfirmasi. Tombol Submit SIPP tetap nonaktif pada fase ini.
+
+Jangan menyalin panel Livewire dari sandbox langsung ke halaman tim. Ekstrak menjadi komponen mandiri yang memanfaatkan \`App\Services\Basai\Ktp\GpuKtpOcrClient\`.
