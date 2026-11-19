@@ -36,6 +36,10 @@ def test_auth_and_live_and_ocr():
         assert data['fields']['nama'] == 'MIRA SETIAWAN'
         assert data['review_required'] is True
         assert data['device'] == 'fake-test'
+        assert data['required_complete'] is False
+        assert data['missing_fields'] == [
+            'tempat_lahir', 'tanggal_lahir', 'alamat', 'agama', 'pekerjaan',
+        ]
 
 
 def test_invalid_payload_rejected_before_ocr():
