@@ -1,0 +1,181 @@
+--- a/app/Services/Basai/Test/KtpCaptureService.php
++++ b/app/Services/Basai/Test/KtpCaptureService.php
+@@ -36,6 +36,11 @@
+             throw ValidationException::withMessages(['ktpImage' => 'Gunakan gambar JPEG atau PNG yang valid, maksimal 16 megapiksel.']);
+         }
+ 
++        $result = $ocr->read($image, $mime);
++        if ($result['status'] !== 'OCR_REVIEW' || $result['fields'] === []) {
++            return $result;
++        }
++
+         $disk = Storage::disk('local');
+         $directory = 'ktp-captures/'.Str::uuid();
+         $original = "original.{$extension}";
+@@ -59,9 +64,9 @@
+         if (! $saved) {
+             $disk->deleteDirectory($directory);
+ 
+-            return ['status' => 'STORAGE_ERROR', 'fields' => [], 'raw_text' => ''];
++            return array_replace($result, ['status' => 'STORAGE_ERROR']);
+         }
+ 
+-        return $ocr->read($image, $mime);
++        return $result;
+     }
+ }
+--- a/app/Services/Basai/Test/TesseractKtpOcrService.php
++++ b/app/Services/Basai/Test/TesseractKtpOcrService.php
+@@ -18,17 +18,21 @@
+             return (new UnavailableKtpOcrService)->read($image, $mime);
+         }
+ 
+-        try {
+-            $process = new Process([$command, 'stdin', 'stdout', '-l', 'ind', '--psm', '6'], input: $image, timeout: 20);
+-            if ($process->run() !== 0) {
+-                return ['status' => 'OCR_FAILED', 'fields' => [], 'raw_text' => ''];
+-            }
+-        } catch (\RuntimeException) {
++        $text = $this->recognize($command, $image, '6');
++        if ($text === null) {
+             return ['status' => 'OCR_FAILED', 'fields' => [], 'raw_text' => ''];
+         }
+ 
+-        $text = trim(mb_scrub($process->getOutput(), 'UTF-8'));
+         $fields = $this->parser->parse($text);
++        if ($fields === []) {
++            $alternate = $this->recognize($command, $image, '11');
++            if ($alternate !== null && $alternate !== '') {
++                $fields = $this->parser->parse($alternate);
++                if ($fields !== [] || $text === '') {
++                    $text = $alternate;
++                }
++            }
++        }
+ 
+         return [
+             'status' => $fields === [] ? 'OCR_NO_FIELDS' : 'OCR_REVIEW',
+@@ -36,4 +40,15 @@
+             'raw_text' => $text,
+         ];
+     }
++
++    private function recognize(string $command, string $image, string $mode): ?string
++    {
++        try {
++            $process = new Process([$command, 'stdin', 'stdout', '-l', 'ind', '--psm', $mode], input: $image, timeout: 10);
++
++            return $process->run() === 0 ? trim(mb_scrub($process->getOutput(), 'UTF-8')) : null;
++        } catch (\RuntimeException) {
++            return null;
++        }
++    }
+ }
+--- a/app/Services/Basai/Test/KtpOcrTextParser.php
++++ b/app/Services/Basai/Test/KtpOcrTextParser.php
+@@ -27,7 +27,7 @@
+         $fields = [];
+ 
+         foreach ($labels as $key => $label) {
+-            if (! preg_match('~^\h*'.$label.'(?:\h*:\h*|\h+)([^\r\n]+)~imu', $text, $match)) {
++            if (! preg_match('~^\h*'.$label.'(?:\h*[:：]\h*|\h+)([^\r\n]+)~imu', $text, $match)) {
+                 continue;
+             }
+ 
+--- a/resources/views/livewire/bas-ai-test-assistant.blade.php
++++ b/resources/views/livewire/bas-ai-test-assistant.blade.php
+@@ -207,7 +207,7 @@
+                             <img x-show="preview" x-cloak :src="preview || null" alt="Pratinjau gambar KTP" style="max-width:100%;max-height:240px;display:block">
+                         </div>
+ 
+-                        <button type="button" class="btn btn-primary" @click="save()" :disabled="busy || !file">Simpan/Baca KTP</button>
++                        <button type="button" class="btn btn-primary" @click="save()" :disabled="busy || !file">Baca KTP</button>
+                         <p role="status" x-text="status" style="margin-top:8px"></p>
+                         @error('ktpImage')
+                             <p class="text-danger" role="alert">{{ $message }}</p>
+@@ -1178,14 +1178,14 @@
+                     }
+                     this.file = file;
+                     this.preview = URL.createObjectURL(file);
+-                    this.status = 'Gambar siap disimpan.';
++                    this.status = 'Gambar siap dibaca.';
+                 },
+ 
+                 async save() {
+                     if (!this.file || this.busy) return;
+                     this.stopCamera();
+                     this.busy = true;
+-                    this.status = 'Menyimpan gambar KTP…';
++                    this.status = 'Membaca gambar KTP…';
+                     try {
+                         const encodedImage = await new Promise((resolve, reject) => {
+                             const reader = new FileReader();
+@@ -1194,7 +1194,7 @@
+                             reader.readAsDataURL(this.file);
+                         });
+                         await this.$wire.saveKtpCapture(encodedImage);
+-                        if (this.status === 'Menyimpan gambar KTP…') this.status = 'Periksa hasil validasi gambar.';
++                        if (this.status === 'Membaca gambar KTP…') this.status = 'Periksa hasil validasi gambar.';
+                     } catch {
+                         this.status = 'Gambar gagal dikirim. Coba lagi.';
+                     } finally {
+@@ -1204,17 +1204,15 @@
+ 
+                 showResult(result) {
+                     this.status = {
+-                        OCR_UNAVAILABLE: 'Gambar disimpan secara privat. OCR belum tersedia (OCR_UNAVAILABLE).',
+-                        OCR_FAILED: 'Gambar disimpan secara privat. OCR gagal dijalankan.',
+-                        OCR_NO_FIELDS: 'Gambar disimpan secara privat. Tidak ada kolom yang berhasil dikenali. Periksa teks OCR atau gunakan foto yang lebih jelas.',
+-                        OCR_REVIEW: 'Pembacaan selesai. Periksa dan koreksi kolom sebelum melanjutkan.',
++                        OCR_UNAVAILABLE: 'OCR belum tersedia (OCR_UNAVAILABLE). Gambar belum disimpan.',
++                        OCR_FAILED: 'OCR gagal dijalankan. Gambar belum disimpan.',
++                        OCR_NO_FIELDS: 'Tidak ada kolom yang dikenali. Gambar belum disimpan. Periksa teks OCR atau ambil ulang foto.',
++                        OCR_REVIEW: 'Gambar tersimpan secara privat. Periksa dan koreksi kolom hasil OCR.',
+                         STORAGE_ERROR: 'Gambar KTP gagal disimpan.',
+                     }[result.status] || result.status;
+-                    if (result.status !== 'STORAGE_ERROR') {
+-                        this.file = null;
+-                        this.fields = { ...this.fields, ...result.fields };
+-                        this.rawText = result.raw_text;
+-                    }
++                    if (result.status === 'OCR_REVIEW') this.file = null;
++                    this.fields = { ...this.fields, ...result.fields };
++                    this.rawText = result.raw_text;
+                 },
+             });
+ 
+--- a/tests/Feature/BasKtpCaptureTest.php
++++ b/tests/Feature/BasKtpCaptureTest.php
+@@ -3,6 +3,7 @@
+ namespace Tests\Feature;
+ 
+ use App\Services\Basai\Test\KtpCaptureService;
++use App\Services\Basai\Test\KtpOcrService;
+ use App\Services\Basai\Test\UnavailableKtpOcrService;
+ use Illuminate\Support\Facades\Storage;
+ use Illuminate\Validation\ValidationException;
+@@ -18,11 +19,20 @@
+         imagepng($image);
+         $bytes = ob_get_clean();
+ 
+-        $result = app(KtpCaptureService::class)->saveAndRead(
+-            base64_encode($bytes), 31, 42, 53, new UnavailableKtpOcrService
+-        );
++        $ocr = new class implements KtpOcrService
++        {
++            public function read(string $image, string $mime): array
++            {
++                return ['status' => 'OCR_REVIEW', 'fields' => ['nama' => 'SAKSI SINTETIS'], 'raw_text' => 'Nama: SAKSI SINTETIS'];
++            }
++        };
++        $captures = app(KtpCaptureService::class);
++        $unavailable = $captures->saveAndRead(base64_encode($bytes), 31, 42, 53, new UnavailableKtpOcrService);
++        $this->assertSame('OCR_UNAVAILABLE', $unavailable['status']);
++        $this->assertSame([], $disk->allFiles('ktp-captures'));
+ 
+-        $this->assertSame(['status' => 'OCR_UNAVAILABLE', 'fields' => [], 'raw_text' => ''], $result);
++        $result = $captures->saveAndRead(base64_encode($bytes), 31, 42, 53, $ocr);
++        $this->assertSame('OCR_REVIEW', $result['status']);
+         [$directory] = $disk->directories('ktp-captures');
+         $original = $directory.'/original.png';
+         $metadataPath = $directory.'/capture.json';
