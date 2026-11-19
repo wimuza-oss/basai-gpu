@@ -10,12 +10,14 @@ from app.engine import OcrLine
 FIELDS = (
     'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'alamat',
     'rt_rw', 'kelurahan_desa', 'kecamatan', 'agama', 'status_perkawinan',
-    'pekerjaan', 'kewarganegaraan', 'berlaku_hingga',
+    'pekerjaan', 'kewarganegaraan', 'berlaku_hingga', 'kabupaten_kota', 'provinsi',
 )
 
 # Kolom prioritas untuk review identitas saksi, bukan jaminan hasil OCR.
 REQUIRED_OCR_FIELDS = (
-    'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat', 'agama', 'pekerjaan',
+    'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat',
+    'kelurahan_desa', 'kecamatan', 'kabupaten_kota', 'provinsi',
+    'agama', 'pekerjaan',
 )
 DATE = r'(\d{1,2}[-./]\d{1,2}[-./](?:19|20)\d{2})'
 LABELS: list[tuple[str, re.Pattern[str]]] = [
@@ -104,9 +106,64 @@ def _parse_birth(value: str) -> dict[str, str]:
     return result
 
 
-def parse_ktp(lines: list[OcrLine]) -> ParseResult:
-    result: dict[str, str] = {}
+
+# Header administratif KTP terletak sebelum baris NIK, bukan di sebelah foto/tanda tangan.
+_PROVINCE = re.compile(r'^PROVINSI\s*[:.\-]?\s*(.*)$', re.I)
+_REGENCY = re.compile(r'^(?:KABUPATEN|KOTA)(?:\s+ADMINISTRASI)?\s+[A-Z][A-Z\s.\'-]*$', re.I)
+_DKI_REGION = re.compile(r'^(?:JAKARTA\s+(?:BARAT|TIMUR|PUSAT|UTARA|SELATAN)|KEPULAUAN\s+SERIBU)$', re.I)
+_REGION_VALUE = re.compile(r'^[A-Z][A-Z\s.\'-]{2,80}$', re.I)
+
+
+def _header_value(text: str) -> str | None:
+    value = re.sub(r'\s+', ' ', text).strip(' :;|.-').upper()
+    if not value or not _REGION_VALUE.fullmatch(value):
+        return None
+    if re.search(r'\b(?:NIK|NAMA|TEMPAT|JENIS|ALAMAT|KELAMIN|AGAMA)\b', value):
+        return None
+    return value
+
+
+def _parse_header(lines: list[OcrLine]) -> ParseResult:
+    first_nik = next((i for i, line in enumerate(lines)
+                      if re.match(r'^\s*N[I1L]K\b', line.text, re.I)
+                      or re.search(r'(?<!\d)\d{16}(?!\d)', line.text)), len(lines))
+    header = lines[:min(first_nik, 6)]
+    fields: dict[str, str] = {}
     scores: dict[str, float] = {}
+    province_index: int | None = None
+    for i, line in enumerate(header):
+        match = _PROVINCE.match(line.text.strip())
+        if match:
+            value = _header_value(match[1])
+            if value is None and not match[1].strip() and i + 1 < len(header):
+                value = _header_value(header[i + 1].text)
+                if value is not None:
+                    province_index = i + 1
+            else:
+                province_index = i
+            if value is not None:
+                fields['provinsi'] = value
+                scores['provinsi'] = line.confidence
+            break
+
+    # Nama kota/kabupaten dapat terbaca tanpa prefiks, misalnya JAKARTA BARAT.
+    # Kasus tanpa prefiks hanya diterima untuk wilayah administratif DKI yang dikenal.
+    after_province = province_index + 1 if province_index is not None else 0
+    for line in header[after_province:]:
+        value = _header_value(line.text)
+        if value is None:
+            continue
+        if _REGENCY.fullmatch(value) or (fields.get('provinsi') == 'DKI JAKARTA' and _DKI_REGION.fullmatch(value)):
+            fields['kabupaten_kota'] = value
+            scores['kabupaten_kota'] = line.confidence
+            break
+
+    return ParseResult(fields, scores)
+
+def parse_ktp(lines: list[OcrLine]) -> ParseResult:
+    header = _parse_header(lines)
+    result: dict[str, str] = dict(header.fields)
+    scores: dict[str, float] = dict(header.confidences)
     for i, line in enumerate(lines):
         text = line.text.replace('：', ':').strip()
         for key, pattern in LABELS:
