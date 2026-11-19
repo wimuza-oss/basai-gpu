@@ -1,0 +1,12 @@
+diff --git a/resources/views/livewire/bas-ai-test-assistant.blade.php b/resources/views/livewire/bas-ai-test-assistant.blade.php
+--- a/resources/views/livewire/bas-ai-test-assistant.blade.php
++++ b/resources/views/livewire/bas-ai-test-assistant.blade.php
+@@ -225,6 +225,7 @@
+                                 'jenis_kelamin' => 'Jenis Kelamin', 'alamat' => 'Alamat',
+                                 'rt_rw' => 'RT/RW', 'kelurahan_desa' => 'Kelurahan/Desa',
+-                                'kecamatan' => 'Kecamatan', 'agama' => 'Agama',
++                                'kecamatan' => 'Kecamatan', 'kabupaten_kota' => 'Kabupaten/Kota',
++                                'provinsi' => 'Provinsi', 'agama' => 'Agama',
+                                 'status_perkawinan' => 'Status Perkawinan', 'pekerjaan' => 'Pekerjaan',
+                                 'kewarganegaraan' => 'Kewarganegaraan', 'berlaku_hingga' => 'Berlaku Hingga',
+                             ] as $key => $label)
