@@ -536,3 +536,11 @@ Semua perubahan penting proyek BAS-AI GPU dan integrasi Laravel dicatat di file 
 - Authenticated identity/logout UI is active on the BAS-AI test page.
 - Logout invalidates the BAS-AI session and unauthenticated access is redirected to login.
 - Existing WAV upload and GPU transcription pipeline remains operational after D5H.
+
+
+### D6A test-page Neon visual baseline
+- Added a presentation-only patch for resources/views/basai/test-audio.blade.php.
+- Reuses the Neon/Bootstrap asset stack already used by the main Laravel BAS-AI layout.
+- Keeps the existing recorder, upload form, CSRF, controller and GPU STT JavaScript untouched.
+- Adds only visual shell, typography, form/panel/button styling and authenticated user-bar alignment.
+- The main Livewire BAS-AI page (/?tahap=1) is not modified.
