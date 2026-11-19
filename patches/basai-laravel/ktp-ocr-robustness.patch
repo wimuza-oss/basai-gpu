@@ -102,6 +102,11 @@ index 51a860d..c3c00b5 100644
 +
 +            if ($key === 'jenis_kelamin') {
 +                $value = preg_split('/\s+GOL\.?\s*DARAH\b/iu', $value, 2)[0] ?? $value;
++            } elseif ($key === 'alamat') {
++                $value = preg_replace('/^\d+\s+(?=(?:JL\.?|JALAN)\b)/iu', '', $value) ?? $value;
++                $value = preg_replace('/\s+-\s+[A-Z][0-9]{0,2}\s*$/iu', '', $value) ?? $value;
++            } elseif ($key === 'pekerjaan') {
++                $value = preg_replace('/\s+[0-9]{1,2}\s*$/u', '', $value) ?? $value;
 +            }
 +
 +            $fields[$key] = trim($value);
@@ -401,7 +406,7 @@ index 218cca7..179de6e 100644
 +            'jenis_kelamin' => in_array($value, ['LAKI-LAKI', 'PEREMPUAN'], true) ? 10 : 0,
 +            'agama' => in_array($value, ['ISLAM', 'KRISTEN', 'KATOLIK', 'HINDU', 'BUDDHA', 'KONGHUCU'], true) ? 8 : 0,
 +            'kewarganegaraan' => in_array($value, ['WNI', 'WNA'], true) ? 8 : 0,
-+            default => min(8, max(0, mb_strlen($value) / 4)),
++            default => min(8, intdiv(max(0, mb_strlen($value)), 4)),
 +        };
 +    }
  }
