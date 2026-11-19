@@ -15,6 +15,10 @@ use Throwable;
  */
 final class GpuKtpOcrClient implements KtpOcrService
 {
+    private const REQUIRED_FIELDS = [
+        'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat', 'agama', 'pekerjaan',
+    ];
+
     /** @return array{status: string, fields: array<string, string>, raw_text: string, warnings?: array, field_confidences?: array} */
     public function read(string $image, string $mime): array
     {
@@ -78,12 +82,20 @@ final class GpuKtpOcrClient implements KtpOcrService
             unset($fields['nik']);
         }
 
+        $missingFields = array_values(array_filter(
+            self::REQUIRED_FIELDS,
+            static fn (string $key): bool => ! isset($fields[$key])
+        ));
+
         return [
             'status' => $fields === [] ? 'OCR_NO_FIELDS' : 'OCR_REVIEW',
             'fields' => $fields,
             'raw_text' => is_string($data['raw_text'] ?? null) ? mb_substr($data['raw_text'], 0, 20000) : '',
             'warnings' => is_array($data['warnings'] ?? null) ? $data['warnings'] : [],
             'field_confidences' => is_array($data['field_confidences'] ?? null) ? $data['field_confidences'] : [],
+            'required_fields' => self::REQUIRED_FIELDS,
+            'missing_fields' => $missingFields,
+            'required_complete' => $missingFields === [],
             'review_required' => true,
         ];
     }
@@ -91,6 +103,13 @@ final class GpuKtpOcrClient implements KtpOcrService
     /** @return array{status: string, fields: array, raw_text: string} */
     private function failed(string $status): array
     {
-        return ['status' => $status, 'fields' => [], 'raw_text' => ''];
+        return [
+            'status' => $status,
+            'fields' => [],
+            'raw_text' => '',
+            'required_fields' => self::REQUIRED_FIELDS,
+            'missing_fields' => self::REQUIRED_FIELDS,
+            'required_complete' => false,
+        ];
     }
 }
