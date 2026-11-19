@@ -56,3 +56,27 @@ def test_birth_label_split_across_three_lines():
     ])
     assert result.fields['tempat_lahir'] == 'BANDUNG'
     assert result.fields['tanggal_lahir'] == '19-07-1979'
+
+
+def test_seven_priority_fields_can_be_extracted_from_separate_ocr_lines():
+    # Data sintetis: foto/rekaman/PII asli tidak masuk ke repository.
+    lines = [
+        OcrLine('NIK: 1234567890123456', .98),
+        OcrLine('Nama: SAKSI CONTOH', .97),
+        OcrLine('Tempat/Tgl Lahir: BANDUNG, 12-05-1980', .96),
+        OcrLine('Alamat: JL. CONTOH NO. 12', .95),
+        OcrLine('Agama: ISLAM', .94),
+        OcrLine('Pekerjaan: KARYAWAN SWASTA', .93),
+    ]
+    got = parse_ktp(lines).fields
+    assert {key: got[key] for key in (
+        'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat', 'agama', 'pekerjaan',
+    )} == {
+        'nik': '1234567890123456',
+        'nama': 'SAKSI CONTOH',
+        'tempat_lahir': 'BANDUNG',
+        'tanggal_lahir': '12-05-1980',
+        'alamat': 'JL. CONTOH NO. 12',
+        'agama': 'ISLAM',
+        'pekerjaan': 'KARYAWAN SWASTA',
+    }
