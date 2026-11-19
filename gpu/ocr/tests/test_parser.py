@@ -5,6 +5,7 @@ from app.parser import parse_ktp
 def test_noisy_synthetic_id_card_text():
     lines = [
         'PROVINSI DKI JAKARTA',
+        'JAKARTA BARAT',
         'NIK : 3171234567890123',
         'Nama : MIRA SETIAWAN',
         'Tempat/Tgi Lahir : JAKARTA, 18-02-1986',
@@ -28,6 +29,7 @@ def test_noisy_synthetic_id_card_text():
         'kecamatan': 'KALIDERES', 'agama': 'ISLAM',
         'status_perkawinan': 'KAWIN', 'pekerjaan': 'PEGAWAI SWASTA',
         'kewarganegaraan': 'WNI', 'berlaku_hingga': '22-02-2017',
+        'provinsi': 'DKI JAKARTA', 'kabupaten_kota': 'JAKARTA BARAT',
     }
 
 
@@ -80,3 +82,39 @@ def test_seven_priority_fields_can_be_extracted_from_separate_ocr_lines():
         'agama': 'ISLAM',
         'pekerjaan': 'KARYAWAN SWASTA',
     }
+
+
+def test_regency_header_is_read_before_nik():
+    lines = [
+        OcrLine('PROVINSI JAWA BARAT', .98),
+        OcrLine('KABUPATEN BANDUNG', .97),
+        OcrLine('NIK: 1234567890123456', .99),
+        OcrLine('Kel/Desa: CANGKUANG', .93),
+        OcrLine('Kecamatan: SOREANG', .92),
+    ]
+    result = parse_ktp(lines)
+    assert result.fields['provinsi'] == 'JAWA BARAT'
+    assert result.fields['kabupaten_kota'] == 'KABUPATEN BANDUNG'
+    assert result.fields['kelurahan_desa'] == 'CANGKUANG'
+    assert result.fields['kecamatan'] == 'SOREANG'
+
+
+def test_never_infer_city_from_signature_area_or_nationality():
+    lines = [
+        OcrLine('PROVINSI DKI JAKARTA', .95),
+        OcrLine('NIK: 1234567890123456', .95),
+        OcrLine('Kewarganegaraan WNI JAKARTA BARAT', .91),
+        OcrLine('JAKARTA BARAT', .91),
+    ]
+    fields = parse_ktp(lines).fields
+    assert fields['provinsi'] == 'DKI JAKARTA'
+    assert 'kabupaten_kota' not in fields
+
+
+def test_header_region_value_missing_stays_empty():
+    result = parse_ktp([
+        OcrLine('NIK: 1234567890123456', .94),
+        OcrLine('Kabupaten Bandung', .94),
+    ])
+    assert 'kabupaten_kota' not in result.fields
+    assert 'provinsi' not in result.fields
