@@ -1,6 +1,6 @@
 # Phase 1 KTP di BAS-AI Laravel
 
-Repositori GPU STT ini menyimpan dua patch untuk checkout BAS-AI Laravel. Untuk sandbox baru yang sudah punya clone Livewire, jalankan `git apply --check` lalu terapkan `ktp-phase-1.patch`, kemudian `ktp-ocr-tesseract.patch`. Periksa setiap patch terhadap checkout saat akan diterapkan. Sandbox yang sudah memakai kedua patch cukup memverifikasi paket sistem dan menjalankan uji di bawah.
+Repositori GPU STT ini menyimpan patch untuk checkout BAS-AI Laravel. Untuk sandbox baru yang sudah punya clone Livewire, jalankan `git apply --check` lalu terapkan berurutan: `ktp-phase-1.patch`, `ktp-ocr-tesseract.patch`, `ktp-ocr-read-before-save.patch`, lalu `ktp-ocr-robustness.patch`. Periksa setiap patch terhadap checkout saat akan diterapkan. Sandbox yang sudah memakai tiga patch pertama cukup menerapkan `ktp-ocr-robustness.patch`.
 
 ## Prasyarat server
 
@@ -28,3 +28,20 @@ Disk Laravel `local` harus menunjuk ke penyimpanan privat yang bisa ditulis oleh
 Di sandbox, buka `/basai/test?tahap=1`. Unggah gambar sintetis berlabel KTP dan tekan **Simpan/Baca KTP**. Status hasil yang dikenali adalah `OCR_REVIEW`. Kolom hasil harus bisa diedit dan **RAW OCR text** dapat dibuka. Jika muncul `OCR_UNAVAILABLE`, periksa executable dan `proc_open`. Jika muncul `OCR_FAILED`, periksa data bahasa `ind` dan kemampuan proses PHP menjalankan Tesseract. Status `OCR_NO_FIELDS` berarti OCR berjalan dan parser belum menemukan label yang dikenali.
 
 **Submit ke SIPP** tetap nonaktif. Integrasi SIPP menunggu pemetaan skema yang tervalidasi dan harus memakai `perkara_id` serta pihak yang menghadirkan saksi.
+
+
+## Hotfix robustness OCR KTP
+
+Patch `ktp-ocr-robustness.patch` memperbaiki kegagalan OCR pada foto kamera yang sedikit blur dan parsing KTP yang mengalami noise.
+
+Perubahan utama:
+- kamera meminta resolusi ideal 2560x1440 dan continuous focus bila perangkat mendukung;
+- still photo memakai `ImageCapture.takePhoto()` bila tersedia, dengan fallback canvas JPEG kualitas 0.98;
+- OCR mencoba gambar original, hasil grayscale/upscale/sharpen, serta crop sisi kiri KTP untuk mengurangi gangguan foto/signature;
+- setiap variant dicoba dengan Tesseract PSM 6 dan 11;
+- hasil beberapa pass digabung berdasarkan kualitas field;
+- parser lebih toleran terhadap OCR label seperti `Tempat/Tgi Lahir`;
+- normalisasi nilai terbatas untuk gender, RT/RW, agama, status perkawinan, kewarganegaraan, tanggal, serta noise ringan pada alamat/pekerjaan;
+- tes regresi memakai contoh noise yang merepresentasikan KTP sintetis.
+
+Tidak ada dependency OS baru pada hotfix ini selain prasyarat Tesseract/GD/mbstring yang sudah dipakai adapter sebelumnya.
