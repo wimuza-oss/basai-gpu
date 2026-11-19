@@ -212,8 +212,8 @@ TITLE_NEW = """<div class="basai-test-heading">
     <span class="basai-test-badge">MESIN TEKNIS</span>
 </div>"""
 
-SCRIPT_MARKER = "\\n<script>"
-SCRIPT_REPLACEMENT = "\\n</div>\\n\\n<script>"
+SCRIPT_MARKER = "\n<script>"
+SCRIPT_REPLACEMENT = "\n</div>\n\n<script>"
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
     if new in source:
@@ -238,7 +238,7 @@ def main() -> int:
         updated = PHP_BLOCK + updated
 
     updated = replace_once(updated, HEAD_OLD, HEAD_NEW, "title")
-    updated = replace_once(updated, "</head>", OVERRIDES + "\\n</head>", "head")
+    updated = replace_once(updated, "</head>", OVERRIDES + "\n</head>", "head")
     updated = replace_once(updated, BODY_OLD, BODY_NEW, "body")
     updated = replace_once(updated, TITLE_OLD, TITLE_NEW, "heading")
     updated = replace_once(updated, SCRIPT_MARKER, SCRIPT_REPLACEMENT, "script")
