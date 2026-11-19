@@ -1,0 +1,35 @@
+services:
+  basai-ocr:
+    build: .
+    image: basai-ocr:1.0.0
+    container_name: basai-ocr
+    init: true
+    restart: unless-stopped
+    gpus: all
+    environment:
+      BASAI_OCR_TOKEN: ${BASAI_OCR_TOKEN:?BASAI_OCR_TOKEN wajib diisi}
+      OCR_REQUIRE_GPU: '1'
+      OCR_MAX_PASSES: '2'
+      PADDLEX_HOME: /models
+      HOME: /models
+      XDG_CACHE_HOME: /models/.cache
+      DISABLE_MODEL_SOURCE_CHECK: 'True'
+    ports:
+      - '127.0.0.1:18069:8000'
+    volumes:
+      - ./models:/models
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    shm_size: '1gb'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    healthcheck:
+      test: ['CMD', 'python', '-c', 'import os,urllib.request; r=urllib.request.Request("http://127.0.0.1:8000/health/ready", headers={"Authorization":"Bearer "+os.environ["BASAI_OCR_TOKEN"]}); urllib.request.urlopen(r,timeout=3)']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 360s
