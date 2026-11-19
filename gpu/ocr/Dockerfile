@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/opt/venv/bin:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-venv python3-pip libglib2.0-0 libgl1 ca-certificates \
+    python3 python3-venv python3-pip libglib2.0-0 libgl1 libgomp1 ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv /opt/venv
 
