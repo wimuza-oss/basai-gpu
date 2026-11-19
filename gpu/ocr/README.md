@@ -115,3 +115,7 @@ Jangan menghapus `/opt/basai-ocr/models` untuk rollback; cache model bisa dipaka
 - Model yang belum berhasil warmup / tidak menemukan GPU = service tidak READY, **tidak fallback CPU diam-diam**.
 - CUDA/PaddlePaddle pada RTX 50-series bisa memiliki isu runtime; jika muncul `CUDA error 719`, stop dan audit versi runtime; jangan terus retry dengan data nyata.
 - Kinerja/akurasi dokumen nyata hanya dapat dibuktikan di `.81`, tidak dapat dipastikan dari unit test mock.
+
+## Perbaikan dependency build (2026-11-19)
+
+Jika Docker build berhenti pada `Dockerfile:24` dengan `ResolutionImpossible` terkait PyYAML atau OpenCV, itu adalah konflik *pip dependency resolver*, bukan kegagalan `apt-get install tesseract-ocr`. Untuk kombinasi `paddleocr==3.3.2` dan `paddlex[ocr-core]==3.3.1`, manifest sudah diselaraskan pada `opencv-contrib-python==4.10.0.84` dan `PyYAML==6.0.2`. Di host GPU, update **hanya** `/opt/basai-ocr/requirements.txt` dari branch ini lalu build ulang; jangan upgrade Python/CUDA/driver atau mengubah container STT/diarization. Jalankan `pip check` pada tahap image build.
