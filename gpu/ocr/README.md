@@ -119,3 +119,7 @@ Jangan menghapus `/opt/basai-ocr/models` untuk rollback; cache model bisa dipaka
 ## Perbaikan dependency build (2026-11-19)
 
 Jika Docker build berhenti pada `Dockerfile:24` dengan `ResolutionImpossible` terkait PyYAML atau OpenCV, itu adalah konflik *pip dependency resolver*, bukan kegagalan `apt-get install tesseract-ocr`. Untuk kombinasi `paddleocr==3.3.2` dan `paddlex[ocr-core]==3.3.1`, manifest sudah diselaraskan pada `opencv-contrib-python==4.10.0.84` dan `PyYAML==6.0.2`. Di host GPU, update **hanya** `/opt/basai-ocr/requirements.txt` dari branch ini lalu build ulang; jangan upgrade Python/CUDA/driver atau mengubah container STT/diarization. Jalankan `pip check` pada tahap image build.
+
+## Perbaikan startup `libgomp.so.1` (2026-11-19)
+
+Jika `python -m app.warmup` gagal dengan `ImportError: libgomp.so.1: cannot open shared object file`, library OpenMP runtime belum ada **dalam image**, meskipun wheel PaddlePaddle telah terpasang. Dockerfile telah ditambah `libgomp1` pada `apt-get install`. Perbarui Dockerfile dari branch ini dan jalankan `sudo docker compose build --no-cache basai-ocr` lalu `sudo docker compose run --rm --no-deps basai-ocr python -m app.warmup`. Jangan melakukan `apt-get install` pada host GPU untuk memperbaiki library di container.
