@@ -12,6 +12,11 @@ FIELDS = (
     'rt_rw', 'kelurahan_desa', 'kecamatan', 'agama', 'status_perkawinan',
     'pekerjaan', 'kewarganegaraan', 'berlaku_hingga',
 )
+
+# Kolom prioritas untuk review identitas saksi, bukan jaminan hasil OCR.
+REQUIRED_OCR_FIELDS = (
+    'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat', 'agama', 'pekerjaan',
+)
 DATE = r'(\d{1,2}[-./]\d{1,2}[-./](?:19|20)\d{2})'
 LABELS: list[tuple[str, re.Pattern[str]]] = [
     ('nik', re.compile(r'^(?:N[I1L]K)\b', re.I)),
