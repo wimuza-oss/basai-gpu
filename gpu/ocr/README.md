@@ -15,7 +15,7 @@ app/
   parser.py          # parser label KTP Indonesia; tidak menebak digit
   service.py         # orchestration, multi-pass, scoring dan quality warnings
   warmup.py          # unduh model dengan gambar sintetis pada tahap instalasi
-integration/laravel/ # adapter reusable + config (tanpa modifikasi file tim)
+integration/laravel/ # kontrak + client stabil + adapter sandbox + config
 compose.yaml         # GPU, loopback binding, container hardening
 Dockerfile           # CUDA 12.9 + Paddle GPU wheel
 requirements.txt
