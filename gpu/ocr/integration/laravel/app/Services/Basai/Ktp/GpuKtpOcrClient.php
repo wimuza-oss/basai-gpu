@@ -16,7 +16,9 @@ use Throwable;
 final class GpuKtpOcrClient implements KtpOcrService
 {
     private const REQUIRED_FIELDS = [
-        'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat', 'agama', 'pekerjaan',
+        'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat',
+        'kelurahan_desa', 'kecamatan', 'kabupaten_kota', 'provinsi',
+        'agama', 'pekerjaan',
     ];
 
     /** @return array{status: string, fields: array<string, string>, raw_text: string, warnings?: array, field_confidences?: array} */
@@ -69,7 +71,8 @@ final class GpuKtpOcrClient implements KtpOcrService
         $fields = [];
         $allowed = [
             'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
-            'alamat', 'rt_rw', 'kelurahan_desa', 'kecamatan', 'agama',
+            'alamat', 'rt_rw', 'kelurahan_desa', 'kecamatan',
+            'kabupaten_kota', 'provinsi', 'agama',
             'status_perkawinan', 'pekerjaan', 'kewarganegaraan', 'berlaku_hingga',
         ];
         foreach ($allowed as $field) {
