@@ -30,7 +30,7 @@ class KtpOcrService:
                 'fields': parsed.fields,
                 'confidence': parsed.confidences,
             })
-            if (len(parsed.fields) >= 12 and all(k in parsed.fields for k in ('nik', 'nama', 'tempat_lahir', 'tanggal_lahir'))):
+            if all(k in parsed.fields for k in REQUIRED_OCR_FIELDS):
                 break
         best = max(candidates, key=lambda c: c['score'])
         merged_fields: dict[str, str] = {}
