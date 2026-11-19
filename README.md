@@ -27,7 +27,9 @@ Integrasi sementara sedang diuji pada aplikasi Laravel 13:
 - `config('basai.pipeline')` terverifikasi valid pada runtime Laravel.
 - `basai_originals` terverifikasi masuk allowlist pipeline.
 - HTTP tetap 200 setelah perbaikan nesting konfigurasi.
-- **FFmpeg belum ditemukan di PATH** pada audit terakhir.
+- FFmpeg dan FFprobe 4.4.2 terverifikasi. Uji WAV end-to-end melewati normalisasi PCM 16-bit, 16 kHz, mono dan menampilkan hasil transkripsi di Laravel.
+
+Status di atas adalah hasil verifikasi 2026-11-13. Jika masalah konfigurasi muncul kembali setelah perubahan aplikasi, mulai dengan audit read-only melalui bootstrap Laravel. Periksa `basai.pipeline`, `basai.gpu.pipeline`, dan status cache konfigurasi sebelum memutuskan perlu patch.
 
 ## Dokumen
 
