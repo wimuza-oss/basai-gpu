@@ -116,10 +116,11 @@ Jangan menghapus `/opt/basai-ocr/models` untuk rollback; cache model bisa dipaka
 - CUDA/PaddlePaddle pada RTX 50-series bisa memiliki isu runtime; jika muncul `CUDA error 719`, stop dan audit versi runtime; jangan terus retry dengan data nyata.
 - Kinerja/akurasi dokumen nyata hanya dapat dibuktikan di `.81`, tidak dapat dipastikan dari unit test mock.
 
-## Perbaikan dependency build (2026-11-19)
 
-Jika Docker build berhenti pada `Dockerfile:24` dengan `ResolutionImpossible` terkait PyYAML atau OpenCV, itu adalah konflik *pip dependency resolver*, bukan kegagalan `apt-get install tesseract-ocr`. Untuk kombinasi `paddleocr==3.3.2` dan `paddlex[ocr-core]==3.3.1`, manifest sudah diselaraskan pada `opencv-contrib-python==4.10.0.84` dan `PyYAML==6.0.2`. Di host GPU, update **hanya** `/opt/basai-ocr/requirements.txt` dari branch ini lalu build ulang; jangan upgrade Python/CUDA/driver atau mengubah container STT/diarization. Jalankan `pip check` pada tahap image build.
+## Struktur alamat administratif (2026-11-19)
 
-## Perbaikan startup `libgomp.so.1` (2026-11-19)
+OCR mengembalikan alamat menjadi bagian terpisah: `alamat`, `rt_rw`, `kelurahan_desa`, `kecamatan`, `kabupaten_kota`, `provinsi`. Nama field `kabupaten_kota` digunakan secara umum (bukan berarti semua wilayah berstatus kabupaten). Misalnya pada KTP sintetis dengan header `PROVINSI DKI JAKARTA` dan `JAKARTA BARAT`, hasilnya adalah `provinsi=DKI JAKARTA` dan `kabupaten_kota=JAKARTA BARAT`. Parser hanya membaca wilayah administratif dari **header sebelum NIK**; kota yang tertulis di dekat tanda tangan atau setelah `Kewarganegaraan` tidak boleh dianggap sebagai daerah domisili.
 
-Jika `python -m app.warmup` gagal dengan `ImportError: libgomp.so.1: cannot open shared object file`, library OpenMP runtime belum ada **dalam image**, meskipun wheel PaddlePaddle telah terpasang. Dockerfile telah ditambah `libgomp1` pada `apt-get install`. Perbarui Dockerfile dari branch ini dan jalankan `sudo docker compose build --no-cache basai-ocr` lalu `sudo docker compose run --rm --no-deps basai-ocr python -m app.warmup`. Jangan melakukan `apt-get install` pada host GPU untuk memperbaiki library di container.
+Sekarang terdapat **11 field prioritas** untuk verifikasi identitas saksi: NIK, Nama, Tempat Lahir, Tanggal Lahir, Alamat, Kelurahan/Desa, Kecamatan, Kabupaten/Kota, Provinsi, Agama, Pekerjaan. RT/RW tetap disediakan sebagai field terpisah. Jika data kosong, UI perlu menampilkan kekurangannya; tidak boleh membuat dugaan kabupaten/kota dari kecamatan atau provinsi.
+
+Di Laravel sandbox, tambahkan `kabupaten_kota` dan `provinsi` ke field pada panel KTP; `GpuKtpOcrClient` menerima kedua kunci JSON tanpa perlu menyalin engine GPU ke Laravel. Lihat `integration/laravel/patches/ktp-address-fields-test-ui.patch`. Ini hanya untuk sandbox `bas-ai-test-assistant.blade.php`, bukan halaman milik tim utama. Submit SIPP tetap nonaktif.
