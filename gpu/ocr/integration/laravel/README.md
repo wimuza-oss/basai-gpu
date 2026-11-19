@@ -2,7 +2,7 @@
 
 Untuk checkout `/var/www/html/basai_tes` yang sudah mempunyai `App\Services\Basai\Test\KtpOcrService` dan `KtpCaptureService`:
 
-1. Copy `app/Services/Basai/Test/GpuKtpOcrService.php` ke folder sama di checkout Laravel.
+1. Copy ketiga file adapter/kontrak: `app/Contracts/Basai/KtpOcrService.php`, `app/Services/Basai/Ktp/GpuKtpOcrClient.php`, dan `app/Services/Basai/Test/GpuKtpOcrService.php` ke path yang sama di Laravel.
 2. Copy `config/basai_ocr.php` ke Laravel `config/`.
 3. Ubah **hanya clone test** `app/Livewire/BasAiTestAssistant.php`:
    - import `TesseractKtpOcrService` diganti `GpuKtpOcrService`;
@@ -13,9 +13,9 @@ Untuk checkout `/var/www/html/basai_tes` yang sudah mempunyai `App\Services\Basa
 
 ## Pemindahan ke halaman utama produksi
 
-Adapter tidak bergantung pada ID route/UI; `GpuKtpOcrService` memakai kontrak `KtpOcrService::read(bytes, mime)` yang sama. Untuk promosi, **extract panel KTP dari Blade clone ke Blade component/Livewire component terpisah**, lalu panggil dari halaman utama dan halaman sandbox, bukan copy-paste seluruh `BasAiTestAssistant`. Pastikan konteks `perkara_id`/`sidang_id` berasal dari record aktif, bukan input bebas klien.
+Client produksi `App\Services\Basai\Ktp\GpuKtpOcrClient` tidak bergantung pada route/UI maupun namespace `Test`, dan mengikuti `App\Contracts\Basai\KtpOcrService::read(bytes, mime)`. Wrapper `Test\GpuKtpOcrService` hanya kompatibilitas dengan `Test\KtpCaptureService` lama. Untuk promosi, **extract panel KTP dari Blade clone ke Blade component/Livewire component terpisah**, lalu panggil dari halaman utama dan halaman sandbox, bukan copy-paste seluruh `BasAiTestAssistant`. Pastikan konteks `perkara_id`/`sidang_id` berasal dari record aktif, bukan input bebas klien.
 
-**Penting:** implementasi awal memakai namespace `App\Services\Basai\Test` karena kompatibilitas dengan `KtpCaptureService` yang sudah ada. Sebelum production, pindahkan interface, capture service, dan adapter menjadi `App\Services\Basai\Ktp` dan buat wrapper backward-compatible di sandbox; jangan mengubah file tim tanpa persetujuan.
+**Penting:** kontrak dan client sudah berada pada namespace stabil `App\Contracts\Basai` dan `App\Services\Basai\Ktp`. Sebelum produksi, pindahkan `Test\KtpCaptureService` dan panel UI menjadi komponen/layanan stabil yang memanggil client tersebut; wrapper Test boleh dipertahankan untuk sandbox. Jangan mengubah file tim tanpa persetujuan.
 
 ## Pencegahan kebocoran
 
