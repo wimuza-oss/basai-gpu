@@ -6,7 +6,7 @@ from time import perf_counter
 import numpy as np
 
 from app.engine import OcrEngine, OcrLine, assemble_rows
-from app.parser import parse_ktp
+from app.parser import REQUIRED_OCR_FIELDS, parse_ktp
 from app.preprocess import build_variants, inspect_quality
 
 
@@ -44,7 +44,12 @@ class KtpOcrService:
                 if key not in merged_fields or conf > merged_confidence[key]:
                     merged_fields[key] = val
                     merged_confidence[key] = conf
+        missing_fields = [key for key in REQUIRED_OCR_FIELDS if not merged_fields.get(key)]
         warnings = list(quality.warnings)
+        if missing_fields:
+            warnings.append(
+                f'{len(missing_fields)} dari {len(REQUIRED_OCR_FIELDS)} kolom prioritas belum terbaca; periksa dan isi manual.'
+            )
         if conflicts:
             warnings.append('Ada perbedaan pembacaan antar-pass; verifikasi kolom yang meragukan.')
         if not merged_fields:
@@ -54,6 +59,9 @@ class KtpOcrService:
         return {
             'status': status,
             'fields': merged_fields,
+            'required_fields': list(REQUIRED_OCR_FIELDS),
+            'missing_fields': missing_fields,
+            'required_complete': not missing_fields,
             'raw_text': raw_text,
             'field_confidences': {key: round(score, 3) for key, score in merged_confidence.items()},
             'review_required': True,
