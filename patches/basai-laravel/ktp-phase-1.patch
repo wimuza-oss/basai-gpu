@@ -1,0 +1,417 @@
+diff --git a/app/Livewire/BasAiTestAssistant.php b/app/Livewire/BasAiTestAssistant.php
+index d4a2fd8..59cf77a 100644
+--- a/app/Livewire/BasAiTestAssistant.php
++++ b/app/Livewire/BasAiTestAssistant.php
+@@ -11,6 +11,8 @@ use App\Models\BasDraft;
+ use App\Models\PaniteraPn;
+ use App\Models\SippUser;
+ use App\Services\BasAudioTranscriptService;
++use App\Services\Basai\Test\KtpCaptureService;
++use App\Services\Basai\Test\UnavailableKtpOcrService;
+ use App\Services\BasMultiChannelAudioService;
+ use App\Services\BasTemplateProcessor;
+ use App\Services\N8nPipelineMockService;
+@@ -3049,6 +3051,18 @@ class BasAiTestAssistant extends Component
+         return $labels[$key] ?? $key;
+     }
+ 
++    public function saveKtpCapture(string $encodedImage, KtpCaptureService $captures, UnavailableKtpOcrService $ocr): void
++    {
++        $auth = session('basai.auth', []);
++        abort_unless(is_array($auth) && ! empty($auth['username']) && ! empty($auth['fullname']), 403);
++        $userId = filter_var($auth['userid'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
++        abort_if($userId === false, 403);
++
++        $this->resetErrorBag('ktpImage');
++        $result = $captures->saveAndRead($encodedImage, $userId, $this->perkara_id, $this->hearing_id, $ocr);
++        $this->dispatch('bas-ktp-result', result: $result);
++    }
++
+     public function render()
+     {
+         return view('livewire.bas-ai-test-assistant');
+diff --git a/app/Services/Basai/Test/KtpCaptureService.php b/app/Services/Basai/Test/KtpCaptureService.php
+new file mode 100644
+index 0000000..e4ec584
+--- /dev/null
++++ b/app/Services/Basai/Test/KtpCaptureService.php
+@@ -0,0 +1,67 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++use Illuminate\Support\Facades\Storage;
++use Illuminate\Support\Str;
++use Illuminate\Validation\ValidationException;
++
++final class KtpCaptureService
++{
++    public const MAX_BYTES = 5 * 1024 * 1024;
++
++    /** @return array{status: string, fields: array<string, string>, raw_text: string} */
++    public function saveAndRead(string $encodedImage, int $userId, ?int $caseId, ?int $hearingId, KtpOcrService $ocr): array
++    {
++        $maxEncodedBytes = 4 * intdiv(self::MAX_BYTES + 2, 3);
++        $image = strlen($encodedImage) <= $maxEncodedBytes ? base64_decode($encodedImage, true) : false;
++
++        if (! is_string($image) || $image === '' || strlen($image) > self::MAX_BYTES) {
++            throw ValidationException::withMessages(['ktpImage' => 'Pilih gambar KTP berukuran maksimal 5 MB.']);
++        }
++
++        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($image);
++        $info = @getimagesizefromstring($image);
++        $extension = match ($mime) {
++            'image/jpeg' => 'jpg',
++            'image/png' => 'png',
++            default => null,
++        };
++
++        if ($extension === null || ! $info || $info['mime'] !== $mime
++            || $info[0] * $info[1] > 16_000_000
++            || @imagecreatefromstring($image) === false) {
++            throw ValidationException::withMessages(['ktpImage' => 'Gunakan gambar JPEG atau PNG yang valid, maksimal 16 megapiksel.']);
++        }
++
++        $disk = Storage::disk('local');
++        $directory = 'ktp-captures/'.Str::uuid();
++        $original = "original.{$extension}";
++        $metadata = json_encode([
++            'userid' => $userId,
++            'perkara_id' => $caseId,
++            'sidang_id' => $hearingId,
++            'original' => $original,
++            'mime' => $mime,
++            'bytes' => strlen($image),
++            'captured_at' => now()->toIso8601String(),
++        ], JSON_THROW_ON_ERROR);
++
++        try {
++            $saved = $disk->put("{$directory}/{$original}", $image, 'private')
++                && $disk->put("{$directory}/capture.json", $metadata, 'private');
++        } catch (\Throwable) {
++            $saved = false;
++        }
++
++        if (! $saved) {
++            $disk->deleteDirectory($directory);
++
++            return ['status' => 'STORAGE_ERROR', 'fields' => [], 'raw_text' => ''];
++        }
++
++        return $ocr->read($image, $mime);
++    }
++}
+diff --git a/app/Services/Basai/Test/KtpOcrService.php b/app/Services/Basai/Test/KtpOcrService.php
+new file mode 100644
+index 0000000..fab8d3a
+--- /dev/null
++++ b/app/Services/Basai/Test/KtpOcrService.php
+@@ -0,0 +1,11 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++interface KtpOcrService
++{
++    /** @return array{status: string, fields: array<string, string>, raw_text: string} */
++    public function read(string $image, string $mime): array;
++}
+diff --git a/app/Services/Basai/Test/UnavailableKtpOcrService.php b/app/Services/Basai/Test/UnavailableKtpOcrService.php
+new file mode 100644
+index 0000000..2c6b81c
+--- /dev/null
++++ b/app/Services/Basai/Test/UnavailableKtpOcrService.php
+@@ -0,0 +1,13 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Services\Basai\Test;
++
++final class UnavailableKtpOcrService implements KtpOcrService
++{
++    public function read(string $image, string $mime): array
++    {
++        return ['status' => 'OCR_UNAVAILABLE', 'fields' => [], 'raw_text' => ''];
++    }
++}
+diff --git a/resources/views/livewire/bas-ai-test-assistant.blade.php b/resources/views/livewire/bas-ai-test-assistant.blade.php
+index 047dfbd..437977e 100644
+--- a/resources/views/livewire/bas-ai-test-assistant.blade.php
++++ b/resources/views/livewire/bas-ai-test-assistant.blade.php
+@@ -193,6 +193,52 @@
+         <div class="row">
+             {{-- Kolom Kiri: Alur Utama Perekaman / Unggah File + Ruang Sidang + Aksi --}}
+             <div class="col-md-6">
++                <div class="panel panel-default" x-data="basKtpCapture()" x-on:bas-ktp-result.window="showResult($event.detail.result)">
++                    <div class="panel-heading">
++                        <div class="panel-title"><strong>Ambil Data KTP Saksi</strong></div>
++                    </div>
++                    <div class="panel-body">
++                        <div class="form-group" wire:ignore>
++                            <button type="button" class="btn btn-default" @click="openCamera()" :disabled="busy || openingCamera">Buka Kamera</button>
++                            <button type="button" class="btn btn-default" @click="takePhoto()" :disabled="busy || !stream">Ambil Foto</button>
++                            <button type="button" class="btn btn-default" @click="chooseFile()" :disabled="busy">Pilih Gambar KTP</button>
++                            <input type="file" x-ref="filePicker" accept="image/jpeg,image/png" hidden @change="selectFile($event.target.files[0]); $event.target.value = ''">
++                            <video x-ref="camera" x-show="stream" x-cloak autoplay muted playsinline aria-label="Pratinjau kamera KTP" style="max-width:100%;display:block"></video>
++                            <img x-show="preview" x-cloak :src="preview || null" alt="Pratinjau gambar KTP" style="max-width:100%;max-height:240px;display:block">
++                        </div>
++
++                        <button type="button" class="btn btn-primary" @click="save()" :disabled="busy || !file">Simpan/Baca KTP</button>
++                        <p role="status" x-text="status" style="margin-top:8px"></p>
++                        @error('ktpImage')
++                            <p class="text-danger" role="alert">{{ $message }}</p>
++                        @enderror
++
++                        <div class="row" wire:ignore>
++                            @foreach ([
++                                'nik' => 'NIK', 'nama' => 'Nama',
++                                'tempat_lahir' => 'Tempat Lahir', 'tanggal_lahir' => 'Tanggal Lahir',
++                                'jenis_kelamin' => 'Jenis Kelamin', 'alamat' => 'Alamat',
++                                'rt_rw' => 'RT/RW', 'kelurahan_desa' => 'Kelurahan/Desa',
++                                'kecamatan' => 'Kecamatan', 'agama' => 'Agama',
++                                'status_perkawinan' => 'Status Perkawinan', 'pekerjaan' => 'Pekerjaan',
++                                'kewarganegaraan' => 'Kewarganegaraan', 'berlaku_hingga' => 'Berlaku Hingga',
++                            ] as $key => $label)
++                                <div class="col-sm-6 form-group">
++                                    <label for="bas-ktp-{{ $key }}">{{ $label }}</label>
++                                    <input id="bas-ktp-{{ $key }}" class="form-control" type="text"
++                                        x-model="fields.{{ $key }}" maxlength="{{ $key === 'nik' ? 16 : 255 }}"
++                                        @if ($key === 'nik') inputmode="numeric" @endif autocomplete="off">
++                                </div>
++                            @endforeach
++                        </div>
++                        <details wire:ignore>
++                            <summary>RAW OCR text</summary>
++                            <pre x-text="rawText || 'Belum ada teks OCR.'" style="white-space:pre-wrap"></pre>
++                        </details>
++                        <button type="button" class="btn btn-default" disabled style="margin-top:10px">Submit ke SIPP</button>
++                    </div>
++                </div>
++
+                 <div class="panel panel-default">
+                     <div class="panel-heading">
+                         <div class="panel-title"><strong>Rekaman Sidang</strong></div>
+@@ -1047,6 +1093,128 @@
+         (function() {
+             const rootId = 'bas-ai-module';
+ 
++            window.basKtpCapture = () => ({
++                stream: null,
++                cameraRequest: 0,
++                openingCamera: false,
++                file: null,
++                preview: '',
++                status: '',
++                fields: {},
++                rawText: '',
++                busy: false,
++
++                destroy() {
++                    this.stopCamera();
++                    if (this.preview) URL.revokeObjectURL(this.preview);
++                },
++
++                stopCamera() {
++                    this.cameraRequest++;
++                    this.openingCamera = false;
++                    if (this.stream) this.stream.getTracks().forEach(track => track.stop());
++                    this.stream = null;
++                    if (this.$refs.camera) this.$refs.camera.srcObject = null;
++                },
++
++                async openCamera() {
++                    this.stopCamera();
++                    const request = this.cameraRequest;
++                    this.openingCamera = true;
++                    try {
++                        const stream = await navigator.mediaDevices.getUserMedia({
++                            audio: false,
++                            video: { facingMode: { ideal: 'environment' } }
++                        });
++                        if (this.cameraRequest !== request) {
++                            stream.getTracks().forEach(track => track.stop());
++                            return;
++                        }
++                        this.stream = stream;
++                        this.$refs.camera.srcObject = stream;
++                        this.status = '';
++                    } catch {
++                        if (this.cameraRequest === request) this.status = 'Kamera tidak dapat dibuka. Periksa izin kamera atau pilih gambar.';
++                    } finally {
++                        if (this.cameraRequest === request) this.openingCamera = false;
++                    }
++                },
++
++                chooseFile() {
++                    this.stopCamera();
++                    this.$refs.filePicker.click();
++                },
++
++                takePhoto() {
++                    const video = this.$refs.camera;
++                    if (!video.videoWidth || !video.videoHeight) {
++                        this.status = 'Kamera belum siap.';
++                        return;
++                    }
++                    const canvas = document.createElement('canvas');
++                    canvas.width = video.videoWidth;
++                    canvas.height = video.videoHeight;
++                    canvas.getContext('2d').drawImage(video, 0, 0);
++                    this.stopCamera();
++                    canvas.toBlob(blob => {
++                        if (!blob) {
++                            this.status = 'Foto tidak dapat diambil.';
++                            return;
++                        }
++                        this.selectFile(new File([blob], 'capture.jpg', { type: 'image/jpeg' }));
++                    }, 'image/jpeg', 0.92);
++                },
++
++                selectFile(file) {
++                    if (!file) return;
++                    if (this.preview) URL.revokeObjectURL(this.preview);
++                    this.preview = '';
++                    this.file = null;
++                    this.fields = {};
++                    this.rawText = '';
++                    if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 5 * 1024 * 1024) {
++                        this.status = 'Pilih gambar JPEG atau PNG berukuran maksimal 5 MB.';
++                        return;
++                    }
++                    this.file = file;
++                    this.preview = URL.createObjectURL(file);
++                    this.status = 'Gambar siap disimpan.';
++                },
++
++                async save() {
++                    if (!this.file || this.busy) return;
++                    this.stopCamera();
++                    this.busy = true;
++                    this.status = 'Menyimpan gambar KTP…';
++                    try {
++                        const encodedImage = await new Promise((resolve, reject) => {
++                            const reader = new FileReader();
++                            reader.onload = () => resolve(reader.result.split(',')[1]);
++                            reader.onerror = () => reject(reader.error);
++                            reader.readAsDataURL(this.file);
++                        });
++                        await this.$wire.saveKtpCapture(encodedImage);
++                        if (this.status === 'Menyimpan gambar KTP…') this.status = 'Periksa hasil validasi gambar.';
++                    } catch {
++                        this.status = 'Gambar gagal dikirim. Coba lagi.';
++                    } finally {
++                        this.busy = false;
++                    }
++                },
++
++                showResult(result) {
++                    this.status = {
++                        OCR_UNAVAILABLE: 'Gambar disimpan secara privat. OCR belum tersedia (OCR_UNAVAILABLE).',
++                        STORAGE_ERROR: 'Gambar KTP gagal disimpan.',
++                    }[result.status] || result.status;
++                    if (result.status !== 'STORAGE_ERROR') {
++                        this.file = null;
++                        this.fields = { ...this.fields, ...result.fields };
++                        this.rawText = result.raw_text;
++                    }
++                },
++            });
++
+             function getWireComponent() {
+                 const rootEl = document.getElementById(rootId);
+                 if (!rootEl || !window.Livewire || typeof window.Livewire.find !== 'function') {
+diff --git a/routes/web.php b/routes/web.php
+index 2976e9c..b80c854 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -5,6 +5,7 @@ use App\Http\Controllers\Basai\BasaiTestController;
+ use App\Http\Controllers\BasExportController;
+ use App\Http\Middleware\RequireBasaiAuthentication;
+ use App\Livewire\BasAiAssistant;
++use App\Livewire\BasAiTestAssistant;
+ use Illuminate\Support\Facades\Route;
+ 
+ /*
+@@ -49,13 +50,17 @@ Route::middleware(RequireBasaiAuthentication::class)->group(function (): void {
+ |--------------------------------------------------------------------------
+ | BAS-AI Mesin Teknis & Pengujian GPU STT Pipeline Tim Teknis
+ |--------------------------------------------------------------------------
+-| Hanya aktif pada APP_ENV=local melalui controller guard.
++| Halaman pengujian GPU STT tetap memakai pembatasan APP_ENV=local.
+ */
+ 
+-Route::get('/basai/test', [BasaiTestController::class, 'show'])
++Route::get('/basai/test', BasAiTestAssistant::class)
+     ->middleware(RequireBasaiAuthentication::class)
+     ->name('basai.test.show');
+ 
++Route::get('/basai/test/audio', [BasaiTestController::class, 'show'])
++    ->middleware(RequireBasaiAuthentication::class)
++    ->name('basai.test.audio');
++
+ Route::post('/basai/test', [BasaiTestController::class, 'transcribe'])
+     ->middleware(RequireBasaiAuthentication::class)
+     ->name('basai.test.transcribe');
+diff --git a/tests/Feature/BasKtpCaptureTest.php b/tests/Feature/BasKtpCaptureTest.php
+new file mode 100644
+index 0000000..aa32c0a
+--- /dev/null
++++ b/tests/Feature/BasKtpCaptureTest.php
+@@ -0,0 +1,52 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Services\Basai\Test\KtpCaptureService;
++use App\Services\Basai\Test\UnavailableKtpOcrService;
++use Illuminate\Support\Facades\Storage;
++use Illuminate\Validation\ValidationException;
++use Tests\TestCase;
++
++class BasKtpCaptureTest extends TestCase
++{
++    public function test_it_preserves_the_original_and_records_private_capture_metadata(): void
++    {
++        $disk = Storage::fake('local');
++        $image = imagecreatetruecolor(2, 2);
++        ob_start();
++        imagepng($image);
++        $bytes = ob_get_clean();
++
++        $result = app(KtpCaptureService::class)->saveAndRead(
++            base64_encode($bytes), 31, 42, 53, new UnavailableKtpOcrService
++        );
++
++        $this->assertSame(['status' => 'OCR_UNAVAILABLE', 'fields' => [], 'raw_text' => ''], $result);
++        [$directory] = $disk->directories('ktp-captures');
++        $original = $directory.'/original.png';
++        $metadataPath = $directory.'/capture.json';
++        $this->assertSame($bytes, $disk->get($original));
++        $this->assertSame('private', $disk->getVisibility($original));
++        $this->assertSame('private', $disk->getVisibility($metadataPath));
++        $metadata = json_decode($disk->get($metadataPath), true, flags: JSON_THROW_ON_ERROR);
++        $this->assertSame([31, 42, 53], [$metadata['userid'], $metadata['perkara_id'], $metadata['sidang_id']]);
++    }
++
++    public function test_it_rejects_invalid_and_oversized_payloads_without_storing_them(): void
++    {
++        $disk = Storage::fake('local');
++        $captures = app(KtpCaptureService::class);
++
++        foreach (['***', base64_encode('not an image'), str_repeat('A', 7_000_000)] as $payload) {
++            try {
++                $captures->saveAndRead($payload, 31, null, null, new UnavailableKtpOcrService);
++                $this->fail('The invalid image should be rejected.');
++            } catch (ValidationException $exception) {
++                $this->assertArrayHasKey('ktpImage', $exception->errors());
++            }
++        }
++
++        $this->assertSame([], $disk->allFiles('ktp-captures'));
++    }
++}
